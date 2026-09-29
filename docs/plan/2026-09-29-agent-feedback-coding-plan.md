@@ -169,7 +169,7 @@ authority_refs:
 
 **Files:**
 - Create: `test/e2e.test.ts`（根目录；按 AC-018 步骤；构建产物用 `npm run build` 后的 dist；`set-admin` 通过 stdin 喂密码；令牌通过管理界面 HTTP 生成）；`package.json` 的 `test` 脚本改为同时包含 `test/*.test.ts`
-- Create: `docs/report/上线评测场景.md`（frontmatter；20 个该反馈 + 20 个不该反馈场景的表：编号、场景描述、预期（反馈/不反馈）、实际、是否含禁写信息；判定口径与计算公式；执行方法：用 `--dry-run` 检查请求体）
+- Create: `docs/report/上线评测场景.md`（frontmatter；20 个该反馈 + 20 个不该反馈场景的表：编号、场景描述、预期（反馈/不反馈）、实际、是否含禁写信息；判定口径与计算公式；执行方法：用 `--dry-run` 检查请求体〔当时口径；现行执行方法见 `docs/report/上线评测场景.md` 执行方法第 2 步〕）
 - Create: `CHANGELOG.md`（`## 未发布` → `### 新增` 条目：收集服务、管理界面、查询通道、反馈模块、注入工具）
 - Create: `engineering-context/cards/agent-feedback.md`（地图卡）与域卡 `engineering-context/cards/agent-feedback/{提交收录,登记,查询通道,管理界面,反馈模块,注入}.md`；更新 `engineering-context/capability-registry.md` 最小 schema 表；把 `engineering-context/dependencies/host-skills.md` 调用点改成真实 `文件:行`；跑 `node ~/.claude/skills/dw-code-facts/scripts/ctx/src/cli.js lint-cards` 无违规
 **验证:** `npm run typecheck && npm test && npm run build` → 通过。
