@@ -1,0 +1,12 @@
+{
+  "name": "@agent-feedback/injector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agent-feedback/shared": "1.0.0"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/agent-feedback.mjs"
+  }
+}
