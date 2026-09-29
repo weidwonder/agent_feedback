@@ -9,9 +9,9 @@
 
 | 接口名 | 调用点（文件:行） | 注意事项 |
 |---|---|---|
-| `SKILL.md` frontmatter `name` | 待实现后补：`packages/module/src/host.ts`、`packages/injector/src/inject.ts` | 名称必须由宿主声明，缺失时注入拒绝 |
-| `SKILL.md` frontmatter `metadata.version` | 待实现后补：`packages/module/src/host.ts` | 只认这一处；其他版本写法视为未声明 |
-| `SKILL.md` 正文末尾 | 待实现后补：`packages/injector/src/inject.ts` | 只追加一句带 `<!-- agent-feedback -->` 标记的引导语 |
+| `SKILL.md` frontmatter `name` | `packages/injector/src/inject.ts:64`、`packages/module/src/submit.ts:79`（均经 `packages/shared/src/frontmatter.ts` 解析） | 名称必须由宿主声明，缺失时注入拒绝 |
+| `SKILL.md` frontmatter `metadata.version` | `packages/module/src/submit.ts:93` | 只认这一处；其他版本写法视为未声明 |
+| `SKILL.md` 正文末尾 | `packages/injector/src/inject.ts:120` | 只追加一句带 `<!-- agent-feedback -->` 标记的引导语 |
 
 ## 业务域地图
 
