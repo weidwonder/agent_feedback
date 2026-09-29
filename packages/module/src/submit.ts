@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nodeTooOld } from './node-version.ts';
 import { parseFrontmatter, validateSubmission } from '@agent-feedback/shared';
 
 // 提交脚本不得写标准错误：吞掉 Node 的运行时告警。
@@ -44,6 +45,10 @@ function readText(path: string): string | undefined {
 async function main(): Promise<void> {
   if (process.env.AGENT_FEEDBACK_DISABLED === '1') {
     emit({ ok: false, reason: 'disabled' });
+    return;
+  }
+  if (nodeTooOld(process.versions.node)) {
+    emit({ ok: false, reason: 'node_too_old' });
     return;
   }
 

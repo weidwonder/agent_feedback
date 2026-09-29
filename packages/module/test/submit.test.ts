@@ -6,6 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSy
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nodeTooOld } from '../src/node-version.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const moduleRoot = join(here, '..');
@@ -246,4 +247,10 @@ test('宿主 SKILL.md 缺失或无 name 输出 host_unreadable', async () => {
 test('模块 .gitignore 资产忽略 .runtime/', async () => {
   const text = readFileSync(join(moduleRoot, 'assets', 'gitignore'), 'utf8');
   assert.ok(text.split(/\r?\n/).includes('.runtime/'));
+});
+
+test('nodeTooOld 按主版本判断是否低于 Node 20', () => {
+  assert.equal(nodeTooOld('18.20.0'), true);
+  assert.equal(nodeTooOld('20.0.0'), false);
+  assert.equal(nodeTooOld('22.13.1'), false);
 });

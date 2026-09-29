@@ -7,7 +7,8 @@ import { bumpCounter, bumpRejection, getCounter } from '../src/counters.ts';
 import { DB_FILE, openDb, run } from '../src/db.ts';
 import { applyDeletionLog, deleteFeedback, DELETED_LOG } from '../src/deletions.ts';
 import { getFeedback } from '../src/feedback-query.ts';
-import { backupIfDue, purgeExpired } from '../src/jobs.ts';
+import { setLogWriter } from '../src/http.ts';
+import { backupIfDue, pruneBackups, purgeExpired, runMaintenance } from '../src/jobs.ts';
 import { beijingDateRangeToUtc, beijingDay, monthsAgoUtc } from '../src/time.ts';
 import { count, makeTempDir, registerSkill, seedSubmission, startTestServer } from './helpers.ts';
 
@@ -141,9 +142,10 @@ describe('备份', () => {
 
       // 7 天前（含）的被删，6 天前（边界）保留：当天与前 6 天共 7 份
       writeFileSync(join(backups, 'feedback-20260923.sqlite'), 'old');
-      writeFileSync(join(backups, 'feedback-20260924.sqlite'), 'edge');
+      writeFileSync(join(backups, 'feedback-20260924.sqlite'), 'kept');
       rmSync(made!);
       assert.ok(backupIfDue(db, d, now));
+      pruneBackups(d, now);
       assert.equal(existsSync(join(backups, 'feedback-20260923.sqlite')), false);
       assert.equal(existsSync(join(backups, 'feedback-20260924.sqlite')), true);
       assert.deepEqual(readdirSync(backups).sort(), ['feedback-20260924.sqlite', 'feedback-20260930.sqlite']);
@@ -153,26 +155,62 @@ describe('备份', () => {
     }
   });
 
-  it('备份失败的一天，过期旧备份仍被删除且不留残缺文件', () => {
+  it('临时文件写出后改名失败：返回 null、记 backup_failed，且不留 .tmp', () => {
     const d = makeTempDir();
+    const logs: string[] = [];
+    setLogWriter((line) => logs.push(line));
     try {
       const db = openDb(d);
       const backups = join(d, 'backups');
-      mkdirSync(backups);
-      writeFileSync(join(backups, 'feedback-20260101.sqlite'), 'expired');
-      writeFileSync(join(backups, 'feedback-20260924.sqlite'), 'edge');
-      db.close(); // 数据库已关闭，VACUUM INTO 必然失败
       const now = new Date('2027-01-01T19:30:00Z'); // 北京 2027-01-02 03:30
-      assert.equal(backupIfDue(db, d, now), null);
-      assert.equal(existsSync(join(backups, 'feedback-20260101.sqlite')), false, '过期备份被删除');
-      assert.equal(existsSync(join(backups, 'feedback-20260924.sqlite')), false);
-      assert.deepEqual(readdirSync(backups), [], '没有残缺备份或临时文件');
+      const target = join(backups, 'feedback-20270102.sqlite');
+      // 模拟检查之后目标路径被占成非空目录：VACUUM 已写出临时文件，renameSync 必然失败
+      const racing = {
+        prepare(sql: string) {
+          const stmt = db.prepare(sql);
+          return {
+            run(...args: unknown[]) {
+              const result = (stmt.run as (...a: unknown[]) => unknown)(...args);
+              mkdirSync(target);
+              writeFileSync(join(target, 'occupant'), 'x');
+              return result;
+            },
+          };
+        },
+      } as unknown as DatabaseSync;
+
+      assert.equal(backupIfDue(racing, d, now), null);
+      assert.ok(logs.some((l) => l.includes('event=backup_failed')), '记了 backup_failed');
+      assert.deepEqual(
+        readdirSync(backups).filter((n) => n.endsWith('.tmp')),
+        [],
+        '临时文件已清理',
+      );
+      db.close();
     } finally {
+      setLogWriter(() => {});
       rmSync(d, { recursive: true, force: true });
     }
   });
 
-  it('未到备份时间也照常清理过期备份', () => {
+  it('runMaintenance 清理过期备份与往日残留的临时文件，当天的临时文件不动', async () => {
+    const s = await startTestServer({ now: new Date('2027-01-01T19:30:00Z') }); // 北京 2027-01-02 03:30
+    try {
+      const backups = join(s.dataDir, 'backups');
+      mkdirSync(backups);
+      writeFileSync(join(backups, 'feedback-20260101.sqlite'), 'expired');
+      writeFileSync(join(backups, 'feedback-20261226.sqlite'), 'expired-boundary'); // 7 天前，删
+      writeFileSync(join(backups, 'feedback-20261227.sqlite'), 'kept'); // 6 天前，留
+      writeFileSync(join(backups, 'feedback-20270101.sqlite.tmp'), 'crashed'); // 昨天的残留，删
+      writeFileSync(join(backups, 'feedback-20270102.sqlite.tmp'), 'writing'); // 当天，留
+      runMaintenance(s.ctx);
+      assert.deepEqual(readdirSync(backups).sort(), ['feedback-20261227.sqlite', 'feedback-20270102.sqlite.tmp']);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it('未到备份时间时 backupIfDue 不清理任何文件', () => {
     const d = makeTempDir();
     try {
       const db = openDb(d);
@@ -180,7 +218,7 @@ describe('备份', () => {
       mkdirSync(backups);
       writeFileSync(join(backups, 'feedback-20260101.sqlite'), 'expired');
       assert.equal(backupIfDue(db, d, new Date('2026-09-29T18:59:00Z')), null, '北京 02:59');
-      assert.deepEqual(readdirSync(backups), []);
+      assert.deepEqual(readdirSync(backups), ['feedback-20260101.sqlite']);
       db.close();
     } finally {
       rmSync(d, { recursive: true, force: true });
