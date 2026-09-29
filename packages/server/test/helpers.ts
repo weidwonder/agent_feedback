@@ -123,6 +123,7 @@ export interface SeedOptions {
   moduleVersion?: string;
   agentName?: string;
   harnessName?: string;
+  os?: string;
   items?: { title?: string; type?: string; impact?: string; resolved?: boolean; status?: string }[];
 }
 
@@ -135,9 +136,10 @@ export function seedSubmission(db: DatabaseSync, opts: SeedOptions): number[] {
     db,
     `INSERT INTO submissions (skill_id, skill_version, module_version, session_id, task_summary, user_info,
        user_info_source, os, agent_name, agent_version, harness_name, harness_version, related_skills,
-       submitted_at, received_at) VALUES (?, '1.0', ?, 's-seed', '任务', '用户', 'known', 'linux', ?, NULL, ?, NULL, '[]', ?, ?)`,
+       submitted_at, received_at) VALUES (?, '1.0', ?, 's-seed', '任务', '用户', 'known', ?, ?, NULL, ?, NULL, '[]', ?, ?)`,
     skillId,
     opts.moduleVersion ?? '1.0.0',
+    opts.os ?? 'linux',
     opts.agentName ?? 'claude',
     opts.harnessName ?? 'claude-code',
     receivedAt,

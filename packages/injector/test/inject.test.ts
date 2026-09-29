@@ -3,10 +3,11 @@ import { spawn } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { defaultConfigPath } from '../src/config.ts';
 
 const CLI = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const TOKEN = 'afr_secret_token_123';
@@ -326,5 +327,15 @@ describe('inject', () => {
     assert.equal(r.code, 1);
     assert.match(r.stderr, /缺少反馈模块文件/);
     assert.deepEqual(snapshot(host), before);
+  });
+});
+
+describe('本机配置默认路径', () => {
+  it('win32：位于 %APPDATA%\\agent-feedback\\config.json', { skip: process.platform !== 'win32' }, () => {
+    assert.equal(defaultConfigPath(), join(process.env.APPDATA!, 'agent-feedback', 'config.json'));
+  });
+
+  it('非 win32：位于 ~/.config/agent-feedback/config.json', { skip: process.platform === 'win32' }, () => {
+    assert.equal(defaultConfigPath(), join(homedir(), '.config', 'agent-feedback', 'config.json'));
   });
 });

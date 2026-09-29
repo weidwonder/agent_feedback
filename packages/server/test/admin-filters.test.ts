@@ -75,6 +75,18 @@ describe('管理界面列表筛选', () => {
     assert.deepEqual(await titlesOf('skill=flt-time&range=custom&to=2026-01-01'), ['FLT-T300'], '只给结束日期');
   });
 
+  it('近 7 / 30 天含今天在内共 7 / 30 个北京自然日：边界毫秒精确', async () => {
+    // NOW 为北京 2026-09-29 12:00；近 7 天起点 = 北京 09-23 00:00 = 2026-09-22T16:00:00Z
+    const edge = (title: string, iso: string) =>
+      seedSubmission(ts.db, { skill: 'flt-edge', receivedAt: iso, items: [{ title, status: 'pending' }] });
+    edge('FLT-E7OUT', '2026-09-22T15:59:59.999Z'); // 北京 7 天前（09-22）23:59:59.999
+    edge('FLT-E7IN', '2026-09-22T16:00:00.000Z'); // 北京 6 天前（09-23）00:00:00
+    edge('FLT-E30OUT', '2026-08-30T15:59:59.999Z'); // 北京 08-30 23:59:59.999
+    edge('FLT-E30IN', '2026-08-30T16:00:00.000Z'); // 北京 08-31 00:00:00
+    assert.deepEqual(await titlesOf('skill=flt-edge&range=7d'), ['FLT-E7IN']);
+    assert.deepEqual(await titlesOf('skill=flt-edge&range=30d'), ['FLT-E30IN', 'FLT-E7IN', 'FLT-E7OUT']);
+  });
+
   it('非法取值回退到默认，页面仍 200 且不报错', async () => {
     assert.deepEqual(await titlesOf('skill=flt&type=bogus&impact=bogus&resolved=maybe&range=1y&from=xx'), ['FLT-A', 'FLT-B', 'FLT-D', 'FLT-E', 'FLT-F']);
   });

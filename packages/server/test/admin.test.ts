@@ -193,9 +193,28 @@ describe('管理界面', () => {
     });
     const p1 = await (await call('/admin/feedback?skill=page-skill')).text();
     assert.equal((p1.match(/分页问题\d+/g) ?? []).length, 20);
-    assert.ok(p1.includes('第 1 / 2 页'));
+    assert.ok(p1.includes('第 1 页，共 2 页'));
     const p2 = await (await call('/admin/feedback?skill=page-skill&page=2')).text();
     assert.equal((p2.match(/分页问题\d+/g) ?? []).length, 5);
+  });
+
+  it('列表只有一页时也显示"第 1 页，共 1 页"', async () => {
+    seedSubmission(ts.db, { skill: 'one-page-skill', items: [{ title: '唯一问题' }] });
+    assert.ok((await (await call('/admin/feedback?skill=one-page-skill')).text()).includes('第 1 页，共 1 页'));
+  });
+
+  it('详情操作系统显示中文名，表外取值原样显示并转义', async () => {
+    const shown = async (os: string): Promise<string> => {
+      const [id] = seedSubmission(ts.db, { skill: 'os-skill', os, items: [{ title: `OS-${os}` }] });
+      const html = await (await call(`/admin/feedback/${id}`)).text();
+      return /<dt>操作系统<\/dt><dd>(.*?)<\/dd>/.exec(html)![1]!;
+    };
+    assert.equal(await shown('darwin'), 'macOS');
+    assert.equal(await shown('win32'), 'Windows');
+    assert.equal(await shown('linux'), 'Linux');
+    assert.equal(await shown('other'), '其他');
+    assert.equal(await shown('freebsd<x>'), 'freebsd&lt;x&gt;');
+    assert.equal(await shown('constructor'), 'constructor');
   });
 
   it('详情展示会话信息与同次提交的其他问题；改状态后提示；删除后查不到', async () => {
@@ -204,7 +223,11 @@ describe('管理界面', () => {
     for (const expect of ['问题甲', '任务', '已知：用户', 'detail-skill 1.0', '反馈模块版本', 'claude', 'claude-code', 's-seed', '建议', `/admin/feedback/${b}`]) {
       assert.ok(page.includes(expect), expect);
     }
-    assert.ok((await (await call(`/admin/feedback/${b}`)).text()).includes('未解决，无'));
+    const detailB = await (await call(`/admin/feedback/${b}`)).text();
+    assert.ok(detailB.includes('未解决，无'));
+    assert.ok(detailB.includes('<span class="badge">未解决</span>'), '头部未解决标记');
+    assert.ok(page.includes('<span class="badge">已解决</span>'), '头部已解决标记');
+    assert.ok(page.includes('>保存状态</button>'));
 
     const marked = await call(`/admin/feedback/${a}/status`, { form: { status: 'valid' } });
     assert.equal(marked.status, 303);

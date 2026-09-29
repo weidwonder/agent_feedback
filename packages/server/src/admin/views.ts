@@ -1,4 +1,5 @@
 import { FEEDBACK_TYPES, IMPACTS, LABELS, STATUSES } from '@agent-feedback/shared';
+import type { OsValue } from '@agent-feedback/shared';
 import type { FeedbackView } from '../feedback-query.ts';
 import { parseFeedbackId } from '../feedback-query.ts';
 import { formatBeijing } from '../time.ts';
@@ -160,10 +161,7 @@ export function feedbackListPage(d: ListPageData): string {
   }
 
   const pages = Math.max(1, Math.ceil(d.total / d.pageSize));
-  const pager =
-    pages > 1
-      ? `<div class="pager">${d.page > 1 ? `<a href="/admin/feedback${e(listQuery(f, d.page - 1))}">上一页</a>` : ''}<span class="muted">第 ${d.page} / ${pages} 页</span>${d.page < pages ? `<a href="/admin/feedback${e(listQuery(f, d.page + 1))}">下一页</a>` : ''}</div>`
-      : '';
+  const pager = `<div class="pager">${d.page > 1 ? `<a href="/admin/feedback${e(listQuery(f, d.page - 1))}">上一页</a>` : ''}<span class="muted">第 ${d.page} 页，共 ${pages} 页</span>${d.page < pages ? `<a href="/admin/feedback${e(listQuery(f, d.page + 1))}">下一页</a>` : ''}</div>`;
 
   return layout(
     '反馈',
@@ -189,7 +187,7 @@ export function feedbackDetailPage(item: FeedbackView, siblings: string[], flash
   const body = `${flashBox(flash)}
 <div class="head"><h2>${e(item.id)} ${e(item.title)}</h2><a href="/admin/feedback">返回列表</a></div>
 <div class="card"><h3>问题</h3>
-<p class="row"><span class="badge">${e(LABELS.type[item.type])}</span><span class="badge ${item.impact}">${e(LABELS.impact[item.impact])}</span><span class="badge ${item.status}">${e(LABELS.status[item.status])}</span></p>
+<p class="row"><span class="badge">${e(LABELS.type[item.type])}</span><span class="badge ${item.impact}">${e(LABELS.impact[item.impact])}</span><span class="badge ${item.status}">${e(LABELS.status[item.status])}</span><span class="badge">${item.resolved ? '已解决' : '未解决'}</span></p>
 <dl class="kv"><dt>详细描述</dt><dd class="text">${e(item.description)}</dd>
 <dt>推荐解法</dt><dd class="text">${item.resolved && item.suggestedFix ? e(item.suggestedFix) : '未解决，无'}</dd>
 <dt>本会话出现次数</dt><dd>${item.occurrences}</dd><dt>收录时间</dt><dd>${e(formatBeijing(item.receivedAt, 'full'))}</dd></dl></div>
@@ -198,14 +196,14 @@ export function feedbackDetailPage(item: FeedbackView, siblings: string[], flash
 <dt>反馈模块版本</dt><dd>${e(s.moduleVersion)}</dd>
 <dt>任务概要</dt><dd class="text">${e(s.taskSummary)}</dd>
 <dt>用户信息</dt><dd>${e(LABELS.userInfoSource[s.userInfoSource as 'known' | 'guessed'] ?? s.userInfoSource)}：${e(s.userInfo)}</dd>
-<dt>操作系统</dt><dd>${e(s.os)}</dd>
+<dt>操作系统</dt><dd>${e(Object.hasOwn(LABELS.os, s.os) ? LABELS.os[s.os as OsValue] : s.os)}</dd>
 <dt>agent</dt><dd>${e(version(s.agentName, s.agentVersion))}</dd>
 <dt>运行环境</dt><dd>${e(version(s.harnessName, s.harnessVersion))}</dd>
 <dt>会话编号</dt><dd>${e(s.sessionId)}</dd></dl></div>
 <div class="card"><h3>相关 skill</h3>${related}</div>
 <div class="card"><h3>同次提交的其他问题</h3>${sib}</div>
 <div class="card"><h3>处理</h3><div class="row">
-<form method="post" action="/admin/feedback/${num}/status" class="row"><select name="status">${options(item.status, STATUSES.map((v): [string, string] => [v, LABELS.status[v]]))}</select><button type="submit">保存</button></form>
+<form method="post" action="/admin/feedback/${num}/status" class="row"><select name="status">${options(item.status, STATUSES.map((v): [string, string] => [v, LABELS.status[v]]))}</select><button type="submit">保存状态</button></form>
 <a class="btn secondary" href="#delete-dialog">删除</a></div></div>
 <div class="dialog" id="delete-dialog"><div class="box"><h3>确认删除 ${e(item.id)}？</h3><p>删除后界面和查询通道都查不到，且不可恢复。</p>
 <form method="post" action="/admin/feedback/${num}/delete" class="row"><button class="danger" type="submit">确认删除</button><a class="btn secondary" href="#">取消</a></form></div></div>`;
