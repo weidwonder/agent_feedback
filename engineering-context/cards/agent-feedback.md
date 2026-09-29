@@ -25,11 +25,11 @@ skill 反馈收集服务的 monorepo：服务端收录与查询、注入到宿�
 | GET /v1/feedback、GET/PATCH /v1/feedback/:id | HTTP（查询令牌） | 查询通道 |
 | /admin/* | HTTP（会话 cookie，服务端渲染） | 管理界面 |
 | dist/submit.mjs | 宿主目录内的脚本 | 反馈模块 |
-| agent-feedback config / inject | CLI | 注入 |
+| `node packages/injector/dist/agent-feedback.mjs config / inject` | CLI | 注入 |
 
 ## 跨域陷阱
 - 字段契约只有 `packages/shared` 一份：服务端、提交脚本、管理界面不得各写一套校验、长度上限、枚举或中文显示名，要改先改 shared
-- 库内时间一律 UTC ISO，业务日与到期口径固定北京时间；换算的权威在 `packages/server/src/time.ts`（管理界面显示格式化例外，见管理界面域卡）
+- 库内时间一律 UTC ISO，业务日与到期口径固定北京时间；换算与显示格式化的权威都在 `packages/server/src/time.ts`
 
 ## 上下游
 - 上游（谁调我）：宿主 skill 内的提交脚本、维护 agent、维护者浏览器、注入工具

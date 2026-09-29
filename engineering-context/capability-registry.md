@@ -16,7 +16,7 @@
 | 提交收录 | `packages/server/src/routes/submissions.ts`，字段契约 `packages/shared/src/validate.ts`；详见 cards/agent-feedback/提交收录.md | 其他包另写校验或限额数字；编号复用 |
 | 登记 | `packages/server/src/routes/registry.ts` 与 `admin/skills.ts#renameSkill`；详见 cards/agent-feedback/登记.md | 旧名提交（不放行）；手改 skills.name 漏写旧名表 |
 | 查询通道 | `packages/server/src/routes/feedback-api.ts`，查询逻辑 `feedback-query.ts`；详见 cards/agent-feedback/查询通道.md | 登记令牌与查询令牌混用；清单不带 skill |
-| 管理界面 | `packages/server/src/admin/routes.ts`，渲染 `views.ts`；详见 cards/agent-feedback/管理界面.md | views.ts 内联的北京时区偏移与 time.ts 重复；POST 路由不套 guarded |
+| 管理界面 | `packages/server/src/admin/routes.ts`，渲染 `views.ts`；详见 cards/agent-feedback/管理界面.md | 在 views/routes 另算北京时间偏移（改用 time.ts）；POST 路由不套 guarded |
 | 反馈模块 | `packages/module/src/submit.ts` 与 `assets/FEEDBACK.md`；详见 cards/agent-feedback/反馈模块.md | 脚本内另写校验；agent 手填自动字段 |
 | 注入 | `packages/injector/src/inject.ts#inject`；详见 cards/agent-feedback/注入.md | 对安装副本注入；令牌写入宿主目录 |
 
