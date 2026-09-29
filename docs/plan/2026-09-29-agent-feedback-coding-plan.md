@@ -125,7 +125,7 @@ authority_refs:
 
 **Files:**
 - Create: `packages/injector/package.json`（name `@agent-feedback/injector`，dependencies shared，script `build`=`esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/agent-feedback.mjs`）
-- Create: `packages/injector/src/cli.ts`（参数解析：`config --endpoint <url>`、`inject <dir>`；`--config-path <p>` 与 `--module-dir <p>` 两个隐藏参数仅供测试覆盖默认路径）
+- Create: `packages/injector/src/cli.ts`（参数解析：`config --endpoint <url>`、`inject <dir>`；`--config-path <p>` 与 `--module-dir <p>` 两个隐藏参数仅供测试覆盖默认路径（当时口径为隐藏参数，现行为公开参数，见 spec §3））
 - Create: `packages/injector/src/config.ts`（`defaultConfigPath()`、`readConfig(path)`、`writeConfig(path, cfg)`（0600））
 - Create: `packages/injector/src/registry-client.ts`（`checkName(cfg, name)`、`register(cfg, name)`，fetch + 10 秒超时，错误转成中文原因）
 - Create: `packages/injector/src/inject.ts`（spec §4.4；模块源文件默认位置：相对 `dist/agent-feedback.mjs` 的 `../../module/assets/*` 与 `../../module/dist/submit.mjs`，模块版本读 `../../module/package.json`）

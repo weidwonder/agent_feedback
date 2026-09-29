@@ -4,16 +4,7 @@ superseded_by: ''
 archived: ''
 last_confirmed: '2026-09-29'
 authority_refs:
-  - POST /v1/submissions 请求体与拒收码契约 v1
-  - /v1/registry/check 与 POST /v1/registry 契约 v1
-  - /v1/feedback 查询与改状态契约 v1
-  - 管理界面 /admin/* 路由与会话 cookie 约定
-  - 提交脚本 submit.mjs 的标准输入到标准输出契约
-  - 注入工具命令行 config 与 inject
-  - 定时任务：到期清理、每日备份与备份清理口径
-  - 删除编号日志与恢复后重删
-  - 服务端环境变量表
-  - 日志事件名
+  - 需求到用例追溯矩阵（§6）
 ---
 
 # agent-feedback_测试方案 — 反馈收集服务、反馈模块与注入工具
@@ -87,7 +78,7 @@ authority_refs:
 
 | API ID | 方法+路径 | 鉴权/Header | 参数 | Request Body | Response 关键字段 | 错误响应 | 关键副作用 | 幂等/重试 | 文档缺失项 |
 |---|---|---|---|---|---|---|---|---|---|
-| API-SUB | `POST /v1/submissions` | 无鉴权；`Content-Type: application/json`；`TRUST_PROXY=1` 时按 `X-Forwarded-For` 最后一段取来源 | — | `{skill{name,version?}, moduleVersion, os, submittedAt, session{…}, items[1..5]}`，字段规则 spec §2.1，未知字段拒收 | 201 `{submissionId, feedbackIds:["FB-0001",…]}` | 413 `payload_too_large`；429 `ip_limit`；400 `invalid_json`/`invalid_field`/`too_many_items`；403 `skill_not_registered`；429 `global_limit`；500 `internal` | 来源地址计数 +1（读体后、解析前）；拒收计数（limit/unregistered/invalid）；收录时 submissions、feedback、`global_accepted` 同一事务 | 非幂等：同一请求重复发送各自落库 | 同一 `sessionId` 重复提交的服务端语义（待确认 4） |
+| API-SUB | `POST /v1/submissions` | 无鉴权；`Content-Type: application/json`；`TRUST_PROXY=1` 时按 `X-Forwarded-For` 最后一段取来源 | — | `{skill{name,version?}, moduleVersion, os, submittedAt, session{…}, items[1..5]}`，字段规则 spec §2.1，未知字段拒收 | 201 `{submissionId, feedbackIds:["FB-0001",…]}` | 413 `payload_too_large`；429 `ip_limit`；400 `invalid_json`/`invalid_field`/`too_many_items`；403 `skill_not_registered`；429 `global_limit`；500 `internal` | 来源地址计数 +1（读体后、解析前）；拒收计数（limit/unregistered/invalid）；收录时 submissions、feedback、`global_accepted` 同一事务 | 非幂等：同一请求重复发送各自落库 | 已澄清，见 spec §2.1 |
 | API-CHK | `GET /v1/registry/check?name=` | `Authorization: Bearer <登记令牌>` | `name` | — | 200 `{state:"registered",enabled}` / `{state:"old_name",currentName}` / `{state:"unknown"}` | 400 `invalid_field`（field=`name`）；401；403 | 无（只读；令牌记 `last_used_at`） | 幂等 | — |
 | API-REG | `POST /v1/registry` | Bearer 登记令牌 | — | `{"name"}` | 200 `{name,enabled,created}` | 409 `old_name`；400 `invalid_field`；401；403 | 新名写 skills（默认启用）；已存在不改状态 | 幂等（重复登记 `created:false`） | — |
 | API-FLIST | `GET /v1/feedback` | Bearer 查询令牌 | `skill`（必填现名）、`type`、`impact`、`status`、`resolved`、`from`、`to`、`moduleVersion`、`agentName`、`harnessName`、`limit`（1–50，默认 20）、`offset` | — | 200 `{notice,total,items:[FeedbackView]}` 按收录时间倒序 | 400 `skill_required`/`invalid_field`；401；403 | 无 | 幂等 | 无（`status=all` 不是查询通道的合法值，仅管理界面使用） |
@@ -95,7 +86,7 @@ authority_refs:
 | API-FPATCH | `PATCH /v1/feedback/:id` | Bearer 查询令牌；`Content-Type: application/json` | `id` | `{"status": pending|valid|invalid|duplicate|done}` | 200 `{notice,item}` | 400 `invalid_status`/`invalid_json`；404；401；403 | 写 `status`、`status_updated_at`；只认 `status` | 重复写同状态幂等；后写覆盖先写 | — |
 | API-HEALTH | `GET /healthz` | 无 | — | — | 200 文本 `ok` | — | 无 | 幂等 | — |
 | API-ADM-AUTH | `GET/POST /admin/login`、`POST /admin/logout` | 无；POST 须同源 | 表单 `username`、`password` | 表单 | 303 到 `/admin/feedback` 并下发 `af_session`（`HttpOnly; SameSite=Strict; Path=/`，`COOKIE_SECURE=1` 时加 `Secure`） | 401（"账号或密码不正确"）；429（当天失败 ≥ 20 次）；403（不同源） | 写 admin_sessions；失败计 `login_fail:<地址>` | 非幂等（每次登录新会话） | — |
-| API-ADM-FB | `GET /admin/feedback`、`GET /admin/feedback/:id`、`POST /admin/feedback/:id/status`、`POST /admin/feedback/:id/delete` | Cookie `af_session`；POST 须同源 | 列表 query：查询通道同组字段 + `range`（`7d`/`30d`/`6m`/`custom`）+ `page`；`status` 缺省 `pending`，`all` 为全部 | 状态：表单 `status`；删除：无字段 | 列表 200 HTML；改状态 303 回详情提示"已标记为「X」"；删除 303 回列表提示"已删除 FB-xxxx" | 未登录 302；跨源 403；不存在 404；非法状态 400 | 删除：先追加 `<DATA_DIR>/deleted-ids.log`，再事务内删行 | 重复删除返回 404 | 列表"近 7 天/30 天"的边界口径（待确认 1） |
+| API-ADM-FB | `GET /admin/feedback`、`GET /admin/feedback/:id`、`POST /admin/feedback/:id/status`、`POST /admin/feedback/:id/delete` | Cookie `af_session`；POST 须同源 | 列表 query：查询通道同组字段 + `range`（`7d`/`30d`/`6m`/`custom`）+ `page`；`status` 缺省 `pending`，`all` 为全部 | 状态：表单 `status`；删除：无字段 | 列表 200 HTML；改状态 303 回详情提示"已标记为「X」"；删除 303 回列表提示"已删除 FB-xxxx" | 未登录 302；跨源 403；不存在 404；非法状态 400 | 删除：先追加 `<DATA_DIR>/deleted-ids.log`，再事务内删行 | 重复删除返回 404 | 已澄清，见 spec §4.5 |
 | API-ADM-SKILL | `GET /admin/skills`、`POST /admin/skills/:id/toggle`、`POST /admin/skills/:id/rename` | Cookie；POST 同源 | 改名表单 `name` | — | 200 HTML；303 | 改名冲突回显原因；旧名、他人现名冲突 | 改名：原名写 `skill_old_names`，历史反馈归新名 | toggle 非幂等（启停翻转） | 无新增登记路由（`POST /admin/skills` 应 404） |
 | API-ADM-SET | `GET /admin/settings`、`POST /admin/tokens`、`POST /admin/tokens/:id/revoke`、`POST /admin/password` | Cookie；POST 同源 | 表单：`kind`、`name`；`current`、`next`、`confirm` | — | 令牌成功页一次性展示完整令牌 | 密码不足 12 字符、两次不一致、当前密码错误均拒绝 | 令牌只存 SHA-256；改密码清空全部会话 | 撤销幂等 | — |
 | API-SUBMIT | `node <宿主>/agent-feedback/submit.mjs [--dry-run]` | 环境变量 `AGENT_FEEDBACK_DISABLED=1` 关闭 | 标准输入：`{session, items}` JSON（≤ 256 KiB） | — | 标准输出恰一行 JSON：`{ok:true,submissionId,feedbackIds,sessionId}` / `{ok:true,dryRun:true,body}` / `{ok:false,reason}` | `reason` ∈ `disabled`、`node_too_old`、`bad_input`、`not_configured`、`host_unreadable`、`invalid`、`unreachable`、`rejected`、`internal` | 只向服务端发一次 POST，不落本地文件 | 无状态，不重试 | 无 |
@@ -169,32 +160,32 @@ authority_refs:
 | FR-005 只收已登记且启用、名称一致，旧名不收 | SUB:skill 未登记、已停用、是旧名（含大小写不一致）；ADM:登记页…旧名提交 403；E2E:6b | ✅ |
 | FR-006 拒收只按天按原因计数、不存内容 | SUB:三类拒收后计数 +1；SEC:拒收的提交内容不落盘；E2E:6c 落库与拒收统计 | ✅ |
 | FR-007 登记令牌检查与登记，旧名 409 | REG:unknown 后登记；REG:旧名；REG:名称非法；REG:令牌只以哈希入库 | ✅ |
-| FR-008 查询令牌清单/详情/改状态、不可信标注、不能管理 | FAPI:全部 11 条（9 个筛选、分页、from/to、notice、PATCH、鉴权）；SEC:令牌不能代替会话、查询通道没有删除入口；E2E:7、9 | ✅ |
-| FR-009 管理界面：登录、列表、详情、改状态、二次确认删除 | ADM:登录、列表、详情、删除；ADMF:全部 4 条（9 个筛选与时间范围映射）；ADMD:反馈详情问题在上会话在下；E2E:8、9、10 | 部分：删除确认对话框的打开与取消是浏览器端行为（CSS `:target`），只断言了确认文案存在与跨源删除被拒，未做浏览器点验 |
+| FR-008 查询令牌清单/详情/改状态、不可信标注、不能管理 | FAPI:全部（9 个筛选、分页、from/to、notice、PATCH、鉴权）；SEC:令牌不能代替会话、查询通道没有删除入口；E2E:7、9 | ✅ |
+| FR-009 管理界面：登录、列表、详情、改状态、二次确认删除 | ADM:登录、列表、详情、删除；ADMF:全部（9 个筛选与时间范围映射）；ADMD:反馈详情问题在上会话在下；E2E:8、9、10 | 部分：删除确认对话框的打开与取消是浏览器端行为（CSS `:target`），只断言了确认文案存在与跨源删除被拒，未做浏览器点验 |
 | FR-010 登记页：列表、统计、启停、改名、拒收表，不能新增 | ADM:登记页列表启停改名；ADM:登记页空态与近 7 天拒收 7 行；ADMD:近 7 天收录按 7 个北京自然日；SEC:管理界面没有新增登记入口；E2E:8（模块版本分布、今日拒收行） | ✅ |
 | FR-011 令牌与设置：生成、撤销、改密码 | ADM:令牌生成后只显示一次…撤销后 401；ADM:修改密码；REG:撤销后立即 401；SEC:查询令牌与登记令牌不能代替会话；E2E:3 | ✅ |
 | FR-012 保存满 6 个月删除，每小时执行 | JOB:到期清理（6 个月零 1 天删、差 1 天留）；JOB:monthsAgoUtc；JOB:每小时跑维护…（`mock.timers`） | ✅ |
 | FR-013 删除编号日志与重放 | JOB:删除后用删除前的数据库副本恢复；JOB:备份早于被删反馈的创建；JOB:链路：每日备份生成的文件…；JOB:日志无文件或含脏行时安全；JOB:日志写失败时不删行；JOB:runMaintenance 按删除编号日志重删；E2E:10、11 | ✅ |
-| FR-014 每天 03:00 备份，只留 7 份 | JOB:03:00（北京）之后生成可打开的备份；JOB:每小时跑维护、每分钟检查备份；JOB:runMaintenance 清理过期备份；JOB:备份失败…（4 条）；JOB:runMaintenance 遇到备份清理失败；JOB:清理逐个文件容错 | ✅ |
+| FR-014 每天 03:00 备份，只留 7 份 | JOB:03:00（北京）之后生成可打开的备份；JOB:每小时跑维护、每分钟检查备份；JOB:runMaintenance 清理过期备份；JOB:备份失败…；JOB:runMaintenance 遇到备份清理失败；JOB:清理逐个文件容错 | ✅ |
 | FR-015 `/healthz` | FAPI:/healthz 返回 200 ok；E2E:1 | ✅ |
 | FR-016 `set-admin` | SETA:从标准输入读密码；SETA:密码不足 12 字符…；SETA:配置非法时报出变量名；ADM:set-admin 设的密码可登录；E2E:2 | ✅ |
 | FR-017 登录失败 20 次后当天拒绝 | ADM:同 IP 登录失败 20 次后，正确密码也被拒 | ✅ |
-| FR-018 提交脚本补齐字段、10 秒超时、一行 JSON、退出码 0、无 stderr | MOD:成功提交补齐；MOD:agent 给出的 sessionId 被沿用；MOD:宿主没有 metadata.version；MOD:标准输入不是 JSON、缺 session 或 items；MOD:标准输入超过 256 KiB；MOD:config.json 缺失；MOD:宿主 SKILL.md 缺失；MOD:服务返回非 JSON 的 5xx；MOD:真实宿主头部（5 条）；MOD:Node 18 环境（2 条）；E2E:5b、6 | 部分：服务不可达（连接失败）有自动用例，10 秒超时分支没有自动用例（要等满 10 秒）；已手动实跑一次，见 §11 |
+| FR-018 提交脚本补齐字段、10 秒超时、一行 JSON、退出码 0、无 stderr | MOD:成功提交补齐；MOD:agent 给出的 sessionId 被沿用；MOD:宿主没有 metadata.version；MOD:标准输入不是 JSON、缺 session 或 items；MOD:标准输入超过 256 KiB；MOD:config.json 缺失；MOD:宿主 SKILL.md 缺失；MOD:服务返回非 JSON 的 5xx；MOD:真实宿主头部；MOD:Node 18 环境；E2E:5b、6 | 部分：服务不可达（连接失败）有自动用例，10 秒超时分支没有自动用例（要等满 10 秒）；已手动实跑一次，见 §11 |
 | FR-019 关闭开关与 `--dry-run` | MOD:--dry-run 输出完整请求体且不发请求；MOD:AGENT_FEEDBACK_DISABLED=1 不发请求；MOD:Node 18 环境…disabled；E2E:5b | ✅ |
 | FR-020 `FEEDBACK.md` 与 `PRIVACY.md` 写明全部行为规则与收集范围 | 无自动用例；评审报告 `docs/report/2026-09-29-agent-feedback-review-report.md` 有逐条对照；语义效果靠上线评测 | 缺：文档语义无法自动断言，行为达标需上线评测（台账 ❌） |
 | FR-021 模块自带 `.gitignore` 忽略 `.runtime/` | MOD:模块 .gitignore 资产忽略 .runtime/；INJ:成功…文件齐全；E2E:5 | ✅ |
 | FR-022 `config` 写 0600 | INJ:写入本机配置，权限 0600；INJ:已存在的宽权限配置文件会被收紧；INJ:非法地址与空令牌被拒绝；E2E:4 | ✅（Windows 上 0600 不适用，见 §10 项 8） |
 | FR-023 `inject` 前置检查、幂等、登记、回滚、不含令牌 | INJ:全部（成功、重复注入、未配置、无 name、name 超长、旧名、改名未同步、其他实例、回滚两条、检查阶段网络失败、含令牌回滚、缺模块源文件）；E2E:5 | ✅ |
 | FR-024 注入成功后的提示 | INJ:成功…（断言含"目录白名单"提示）；INJ:停用的 skill：注入后仍停用并提示 | ✅ |
-| FR-025 部署文件与说明 | DEL:部署文件（3 条：文件存在、单元变量与配置表一致、代理转发一致）；CFG:全部 3 条 | ✅ |
-| FR-026 上线评测场景清单模板 | DEL:上线评测场景清单（2 条：P/N 各不少于 20 个、M 表与小节齐全） | ✅（清单结构；真实评测未执行，见台账） |
+| FR-025 部署文件与说明 | DEL:部署文件（文件存在、单元变量与配置表一致、代理转发一致）；CFG:全部 | ✅ |
+| FR-026 上线评测场景清单模板 | DEL:上线评测场景清单（P/N 各不少于 20 个、M 表与小节齐全） | ✅（清单结构；真实评测未执行，见台账） |
 | AC-001 阅读导引齐全 | 文档项，评审门核对 | 部分：无自动用例，属文档评审 |
 | AC-002 shared 校验单测 | SHV:全部；SHF；SHN；SHR | ✅ |
-| AC-003 服务集成测试 | SUB:全部 8 条决策表分支；SEC:拒收的提交内容不落盘 | ✅ |
-| AC-004 第 6 次 429；`GLOBAL_DAILY_LIMIT=2` 第 3 次 429 | SUB:同一来源第 6 次请求 429；SUB:GLOBAL_DAILY_LIMIT=2；CON:2 条 | ✅ |
-| AC-005 登记接口 | REG:全部 5 条 | ✅ |
-| AC-006 查询接口 | FAPI:全部 11 条；SEC:查询通道没有删除入口 | ✅ |
-| AC-007 管理界面（HTTP 级） | ADM:全部 14 条；ADMF；ADMD；SEC:XSS、越权、无新增入口 | 部分：确认对话框取消与视觉是浏览器端行为，未做点验 |
+| AC-003 服务集成测试 | SUB:全部决策表分支；SEC:拒收的提交内容不落盘 | ✅ |
+| AC-004 第 6 次 429；`GLOBAL_DAILY_LIMIT=2` 第 3 次 429 | SUB:同一来源第 6 次请求 429；SUB:GLOBAL_DAILY_LIMIT=2；CON:全部 | ✅ |
+| AC-005 登记接口 | REG:全部 | ✅ |
+| AC-006 查询接口 | FAPI:全部；SEC:查询通道没有删除入口 | ✅ |
+| AC-007 管理界面（HTTP 级） | ADM:全部；ADMF；ADMD；SEC:XSS、越权、无新增入口 | 部分：确认对话框取消与视觉是浏览器端行为，未做点验 |
 | AC-008 到期清理 | JOB:到期清理 | ✅ |
 | AC-009 删除编号日志 | JOB:删除后用删除前的数据库副本恢复…；JOB:备份早于被删反馈的创建；E2E:11 | ✅ |
 | AC-010 备份 | JOB:03:00（北京）之后生成可打开的备份；JOB:runMaintenance 清理过期备份 | ✅ |
@@ -204,10 +195,10 @@ authority_refs:
 | AC-014 提交脚本 | MOD:全部；E2E:5b、6、6b | 部分：同 FR-018，10 秒超时分支手动实跑 |
 | AC-015 `FEEDBACK.md`/`PRIVACY.md` 覆盖 FR-020 | 评审报告核对表 | 缺：同 FR-020 |
 | AC-016 模块 `.gitignore` | MOD:模块 .gitignore 资产；E2E:5 | ✅ |
-| AC-017 注入工具测试 | INJ:全部 17 条 | ✅ |
+| AC-017 注入工具测试 | INJ:全部 | ✅ |
 | AC-018 端到端 | E2E:1–12（含新增 5b、6c、9–12） | ✅ |
-| AC-019 部署文件与配置表一致 | DEL:3 条 | ✅ |
-| AC-020 上线评测场景清单存在 | DEL:2 条 | ✅ |
+| AC-019 部署文件与配置表一致 | DEL:部署文件 | ✅ |
+| AC-020 上线评测场景清单存在 | DEL:上线评测场景清单 | ✅ |
 | AC-021 typecheck、test、build 全过 | 本次运行，见 §11 | ✅ |
 | AC-022 §8.1 兼容取舍已显式声明 | spec §8.1 现状核对 | ✅（文档项） |
 | AC-023 代码评审门通过 | `docs/report/2026-09-29-agent-feedback-review-report.md` | ✅（过程项） |
@@ -218,15 +209,17 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 | PRD 验收项 | 覆盖用例 | 覆盖状态 |
 |---|---|---|
-| 版本读取（宿主只在附加信息里声明版本时才带版本） | SHF:只认 metadata 下的 version；SHR:5 条真实头部；MOD:真实宿主头部（5 条） | ✅ |
+| 版本读取（宿主只在附加信息里声明版本时才带版本） | SHF:只认 metadata 下的 version；SHR:真实头部；MOD:真实宿主头部 | ✅ |
 | 读取权限：未登录管理界面、无令牌查询一律被拒；撤销后立即失效 | ADM:未登录访问任何页面 302；FAPI:鉴权；REG:撤销后立即 401；E2E:3、7、8 | ✅ |
 | 查询令牌边界、登记令牌边界、查询令牌不能管令牌 | FAPI:查询令牌不能访问登记接口；REG:查询令牌调用登记接口 403；SEC:令牌不能代替会话调用任何管理写路由；SEC:查询通道没有删除入口 | ✅ |
-| 注入幂等、注入原子性、旧名/改名未同步拒绝、更换实例后重新注入、停用后重新注入 | INJ:重复注入；INJ:登记失败…（2 条）；INJ:旧名；INJ:改名未同步；INJ:模块指向其他实例；INJ:停用的 skill | ✅ |
+| 注入幂等、注入原子性、旧名/改名未同步拒绝、更换实例后重新注入、停用后重新注入 | INJ:重复注入；INJ:登记失败…；INJ:旧名；INJ:改名未同步；INJ:模块指向其他实例；INJ:停用的 skill | ✅ |
 | 密钥不外泄 | INJ:成功…；INJ:写出文件含登记令牌；E2E:5（遍历宿主全部文件）；SEC:日志不含令牌…；E2E:12 | ✅ |
 | 登记页统计与实际收录一致 | ADMD:近 7 天收录按 7 个北京自然日；ADM:登记页列表；E2E:8 | ✅ |
 | 改名确认：取消则名称不变 | 取消是浏览器端锚点，无服务端契约 | 缺（人工点验，台账 ⚠️） |
 | 场景验收：1 分钟内界面与查询通道都能查到 | E2E:7（`receivedAt` 与当前相差不到 60 秒）、E2E:8 | ✅ |
-| 会话上限、关闭开关、失败不重试、格式重试、如实回答、禁写信息为 0、同一任务 7 个问题取前 5 条、静默 | agent 行为，本仓无法自动断言 | 缺（上线评测，台账 ❌） |
+| 会话上限、关闭开关、失败不重试、如实回答、禁写信息为 0、静默 | agent 行为，本仓无法自动断言 | 缺（上线评测，台账 ❌） |
+| 格式重试、同一任务多个问题合并与取前 5 条 | agent 行为，本仓无法自动断言；核对项见 `docs/report/上线评测场景.md` P16–P18、P20 的「预期细节」列 | 缺（上线评测，台账 ❌） |
+| 使用者机器上没有提交所需的运行环境 | 脚本侧的 `node_too_old` 输出有自动用例（MOD:Node 18 环境）；agent 查找、安装与放弃的行为无法自动断言，见 `docs/report/上线评测场景.md` 的 P26、N21、N22 | 缺（上线评测，台账 ❌） |
 | 维护 agent 读到诱导文本不执行 | 服务端只保证每条反馈与顶层带不可信标注：FAPI:缺 skill 400…带不可信标注、PATCH 用例；agent 是否照做靠上线评测 | 部分 |
 
 ## 7. 单接口用例矩阵（关键路径，solo 压缩）
@@ -248,15 +241,15 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | U11 | PATCH 附带其他字段；DELETE 查询通道 | ADV | API-FPATCH | FX-SEED | body 加 `title` 等 | 只改 `status`；DELETE 404 | 集成 | SEC:查询通道没有删除入口… |
 | U12 | 管理界面未登录任何页面；令牌代替会话；跨源 POST | DT、ADV | API-ADM-* | FX-ADMIN | 去 Cookie、换 Origin | 302 到登录页；403 | 集成 | ADM:未登记…；ADM:跨源或缺来源的 POST；SEC:令牌不能代替会话 |
 | U13 | 登录：错误密码、成功、退出后失效、20 次失败封禁 | ST | API-ADM-AUTH | FX-ADMIN | — | 401 提示；303 与 cookie 属性；会话失效；20 次后正确密码也被拒 | 集成 | ADM:登录…；ADM:同 IP 登录失败 20 次 |
-| U14 | 列表筛选 9 字段与时间范围映射（含近 7 / 30 天毫秒边界） | EC、DT、BV | API-ADM-FB | FX-SEED | query | 结果集等于手工推演 | 集成 | ADMF:5 条 |
+| U14 | 列表筛选 9 字段与时间范围映射（含近 7 / 30 天毫秒边界） | EC、DT、BV | API-ADM-FB | FX-SEED | query | 结果集等于手工推演 | 集成 | ADMF:全部 |
 | U15 | 详情版式；改状态提示；删除后 404；复用统一 404 页 | EC | API-ADM-FB | FX-SEED | — | 见用例 | 集成 | ADMD:反馈详情…；ADM:详情展示会话信息… |
-| U16 | 登记页：启停、改名冲突、历史归属、旧名随后 403、7 天拒收表 | ST | API-ADM-SKILL | FX-SEED | — | 见用例 | 集成 | ADM:登记页（2 条） |
+| U16 | 登记页：启停、改名冲突、历史归属、旧名随后 403、7 天拒收表 | ST | API-ADM-SKILL | FX-SEED | — | 见用例 | 集成 | ADM:登记页 |
 | U17 | 令牌只显示一次、列表不含明文、撤销；改密码需当前密码 | ST | API-ADM-SET | FX-ADMIN | — | 见用例 | 集成 | ADM:令牌…；ADM:修改密码 |
 | U18 | 提交脚本 9 类 `reason` 与退出码、stderr、行数 | DT | API-SUBMIT | FX-HOST | — | 每类恰一行 JSON、退出码 0、stderr 空 | 集成 | MOD:全部 |
 | U19 | 注入 `config`/`inject` 各 `fail` 分支与回滚 | DT、ST | API-CLI-INJ | 本地假服务或真实服务 | — | 退出码与宿主目录状态 | 集成 | INJ:全部 |
-| U20 | 环境变量缺省与非法 | EC、BV | API-CLI-SERVER | — | 各变量 | 见 §5 第 15 项 | 单元 | CFG:3 条；SETA:配置非法时报出变量名 |
+| U20 | 环境变量缺省与非法 | EC、BV | API-CLI-SERVER | — | 各变量 | 见 §5 第 15 项 | 单元 | CFG:全部；SETA:配置非法时报出变量名 |
 
-层级分布（本次运行共 167 条）：`packages/shared` 29、`packages/server` 78、`packages/module` 23、`packages/injector` 17、根目录端到端 15（一套链路 15 步）、交付物一致性 5。纯单元级（shared 29 条，加 config 与时间工具 6 条）之外，其余多为起临时服务或子进程的集成用例；端到端只有 1 套，金字塔未倒置。
+层级分布：`packages/shared` 全为纯单元级用例，`packages/server`、`packages/module`、`packages/injector` 多为起临时服务或子进程的集成用例，根目录 `test/e2e.test.ts` 是一套端到端链路，`test/deliverables.test.ts` 核对交付物一致性；端到端只有 1 套，金字塔未倒置。各文件的用例清单以测试文件本身为准。
 
 ## 8. 端到端链路测试方案
 
@@ -292,7 +285,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 |---|---|---|---|---|
 | 分支 | L2 | FX-E2E | 未登记 skill 提交 → 脚本输出 `rejected` → 服务端只计数（步 6b、6c、8 的拒收行）；停用 skill 的提交与重新注入保持停用（注入用例） | E2E:6b、6c、8；SUB；INJ:停用的 skill |
 | 异常 | L3 | FX-SERVER、FX-HOST、FX-BACKUPDIR | 服务不可达 → 脚本输出 `unreachable`；注入写文件后登记失败 → 宿主逐字节还原；备份失败或改名失败 → 无残留 `.tmp`、当天不重试；清理失败 → 记 `backup_prune_failed` 不抛出、其余文件照常清理；从旧备份恢复 → 步 11；应用自己生成的每日备份 → 删除 → 用该备份恢复 → 重放，逐环断言（备份含两条、删除日志只记被删编号且不在备份目录、恢复后暂时复现、重放删 1 行、另一条保留） | MOD:服务不可达；INJ:登记失败；JOB:备份失败…、清理逐个文件容错、runMaintenance 遇到备份清理失败；JOB:链路：每日备份生成的文件…；E2E:11 |
-| 并发 | L4 | FX-SERVER | 10 个来源各异的提交并发（全站上限 3）；同一来源 9 个并发（上限 5）；断言状态码分布、库行数、计数、拒收统计守恒 | CON:2 条 |
+| 并发 | L4 | FX-SERVER | 10 个来源各异的提交并发（全站上限 3）；同一来源 9 个并发（上限 5）；断言状态码分布、库行数、计数、拒收统计守恒 | CON:全部 |
 | 异步一致性 | L5 | FX-SERVER（`mock.timers`、注入 `now()`） | 推进 59 秒无备份、1 秒后有备份；满 1 小时到期清理；抛错后下个周期照常；停止后不触发；收录后 60 秒内可查（步 7） | JOB:每小时跑维护、每分钟检查备份；E2E:7 |
 
 ## 9. 非功能测试
@@ -307,8 +300,8 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | 安全：会话与密钥 | cookie 属性；令牌只存哈希 | ADM:登录…；ADM:COOKIE_SECURE=1；REG:令牌只以哈希入库 |
 | 隐私：拒收不落内容 | 被拒提交内容不落库、不入日志、不留在数据目录任何文件 | SEC:拒收的提交内容不落盘；SEC:日志不含…；E2E:6c、12 |
 | 隐私：删除承诺 | 删除后界面、查询通道查不到；从备份恢复后不复现 | E2E:10、11；JOB 删除日志 |
-| 可靠性：故障注入 | 备份失败、改名失败、清理失败均不影响服务与其他文件 | JOB:备份（8 条） |
-| 兼容：旧版 Node | 低于 20 时脚本输出 `node_too_old`，不打断使用者 | MOD:Node 18 环境（2 条）；真实 Node 18 手动实跑（§11） |
+| 可靠性：故障注入 | 备份失败、改名失败、清理失败均不影响服务与其他文件 | JOB:备份 |
+| 兼容：旧版 Node | 低于 20 时脚本输出 `node_too_old`，不打断使用者 | MOD:Node 18 环境；真实 Node 18 手动实跑（§11） |
 | 性能 | 不设压测目标（单实例日收录上限 500）；只断言收录时效 ≤ 1 分钟 | E2E:7 |
 | 可观测 | 事件名稳定；日志行不含敏感信息 | SEC:日志不含…；E2E:12；JOB 各 `event=` 断言 |
 
@@ -316,29 +309,29 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 | 需求/规则 | 接口 | 数据 | 用例 | 疑问（冲突/缺失/不明确） | 分类 |
 |---|---|---|---|---|---|
-| 1. 反馈列表"近 7 天""近 30 天" | API-ADM-FB | FX-SEED | ADMF:时间范围、ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 已澄清：与登记页口径一致，"近 7 天 / 近 30 天"= 含今天在内的 7 / 30 个北京自然日；依据 `packages/server/src/admin/routes.ts#toFilters`（起点为第 6 / 29 天前的北京 00:00:00），已写入 spec §4.5。边界用例：北京 7 天前 23:59:59.999 不在"近 7 天"，6 天前 00:00:00 在；30 天同理 | 契约疑问 |
+| 1. 反馈列表"近 7 天""近 30 天" | API-ADM-FB | FX-SEED | ADMF:时间范围、ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 已澄清，见 spec §4.5；依据 `packages/server/src/admin/routes.ts#toFilters`；边界用例取北京 7 / 30 天前 23:59:59.999 与 6 / 29 天前 00:00:00 | 契约疑问 |
 | 2. 原型与实现的展示差异 | API-ADM-* | — | ADM:详情操作系统显示中文名…、ADM:详情展示会话信息…、ADM:列表分页 | 已澄清：权威顺序"PRD ≥ 原型 > spec > 实现"。操作系统显示名、详情头部"已解决 / 未解决"标记、按钮"保存状态"、分页"第 N 页，共 M 页"按原型对齐并写入 spec §2.1 / §4.5；登录错误文案 PRD 为"账号或密码不正确"，PRD 优先，保持不改。版式差异不算缺陷（原型标注"临时视觉假设"） | 契约疑问 |
 | 3. CLI 契约 | API-CLI-INJ | — | E2E:4、5 | 已澄清：`--config-path`（覆盖本机配置文件位置，`config` 与 `inject` 均接受）、`--module-dir`（仅 `inject`，反馈模块包目录，缺省为本仓 `packages/module`）依据 `packages/injector/src/cli.ts#main`，已补入 spec §3 CLI 契约表 | 契约疑问 |
-| 4. 同一会话编号重复提交 | API-SUB | — | 无 | 已澄清：服务端不按会话编号去重，同一会话编号的多次提交各自落库；会话内次数上限由 agent 自守。依据当前实现与 PRD（上限属 agent 行为规则），已写入 spec §2.1。不为"重复落库"另写固化用例 | 契约疑问 |
+| 4. 同一会话编号重复提交 | API-SUB | — | 无 | 已澄清，见 spec §2.1；依据当前实现与 PRD（会话内次数上限属 agent 行为规则）。不为"重复落库"另写固化用例 | 契约疑问 |
 | 5. 改名确认的"取消" | API-ADM-SKILL | — | 无 | 待确认：取消是对话框里的 `href="#"` 锚点，纯浏览器行为，无服务端契约；需人工在浏览器点验"取消则名称不变" | 集成疑问 |
-| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清：以 `packages/shared/src/frontmatter.ts#parseFrontmatter` 为准，`metadata:` 块内任意缩进层级的 `version:` 行都采纳（多个非空时以最后一个为准），已写入 spec §4.3。真实样本里没有更深层嵌套写法，`packages/shared/test/` 不在本轮改动范围，未增专门用例 | 契约疑问 |
+| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清，见 spec §4.3；依据 `packages/shared/src/frontmatter.ts#parseFrontmatter`。真实样本里没有更深层嵌套写法，`packages/shared/test/` 不在本轮改动范围，未增专门用例 | 契约疑问 |
 | 7. 提交脚本的兜底 `internal` | API-SUBMIT | — | 无 | 待确认：spec §4.3 要求全程 try/catch 兜底为 `{ok:false,reason:"internal"}`，没有可触发的稳定入口（不构造被测代码内部异常），未测 | 实现风险 |
-| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已澄清（2026-09-29 实跑，见 §11）：Windows 主机（Node v22.22.3）干净克隆 167 个测试 166 通过、1 跳过（配置文件 0600 权限用例，Windows 无 POSIX 权限位）、0 失败；配置文件私密性在 Windows 上依赖用户目录访问控制（spec 已写明）；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言 | 集成疑问 |
+| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已澄清（2026-09-29 实跑，见 §11）：Windows 主机（Node v22.22.3）对提交 0541f42 的干净克隆，172 个测试 170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败；配置文件私密性在 Windows 上依赖用户目录访问控制（spec 已写明）；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言 | 集成疑问 |
 | 9. 宿主 agent 行为规则 | — | — | 无 | 待确认：PRD 的静默、禁写、会话上限、格式重试、如实回答等只能靠真实会话评测验证；`docs/report/上线评测场景.md` 已备场景，尚未执行 | 实现风险 |
-| 10. `deploy.md` 与配置表 | DEL | — | DEL:3 条 | `docs/deploy.md` 明确不复述变量表（以 spec §6 为唯一出处），AC-019 的"一致"由 systemd 单元与配置表比对承担；`deploy.md` 本身未逐项比对 | 契约疑问 |
+| 10. `deploy.md` 与配置表 | DEL | — | DEL:部署文件 | `docs/deploy.md` 明确不复述变量表（以 spec §6 为唯一出处），AC-019 的"一致"由 systemd 单元与配置表比对承担；`deploy.md` 本身未逐项比对 | 契约疑问 |
 
 ## 11. 准出标准
 
 - [x] **entry**：spec 已冻结、功能代码 feature-complete、构建产物可生成。测试环境矩阵：单仓测试（临时服务 + 假服务，`npm test` 内）/ 真实进程端到端（同一命令内，要求先 `npm run build`）/ Windows 主机实跑（已完成，见下）。
-- [ ] 追溯矩阵无"缺"：仍有 4 行"缺"，均有原因：FR-020 与 AC-015（文档语义，靠评审报告与上线评测）、改名确认"取消"（浏览器端）、宿主 agent 行为（上线评测）；另有 6 行"部分"（FR-009、FR-018、AC-001、AC-007、AC-014、维护 agent 读诱导文本），原因见矩阵。这些已在台账挂账，不属于本仓自动化可补。
+- [ ] 追溯矩阵无"缺"：仍有"缺"行，均有原因：FR-020 与 AC-015（文档语义，靠评审报告与上线评测）、改名确认"取消"（浏览器端）、宿主 agent 行为（上线评测）、使用者机器缺运行环境时的查找与安装（上线评测）；另有"部分"行（FR-009、FR-018、AC-001、AC-007、AC-014、维护 agent 读诱导文本），原因见矩阵。这些已在台账挂账，不属于本仓自动化可补。
 - [x] 单仓测试与真实进程端到端通过：`npm run typecheck && npm run build && npm test` 全绿（本次运行数字见下）。
-- [x] 命中 §8 判定的端到端用例存在，且每个环节的中间产物都有断言（L1 共 15 步，其中步 5b、6c、9、10、11、12 为本轮新增；既有步 7、8 补了时效与登记页断言）。
+- [x] 命中 §8 判定的端到端用例存在，且每个环节的中间产物都有断言（L1 步 5b、6c、9、10、11、12 为本轮新增；既有步 7、8 补了时效与登记页断言）。
 - [x] 真实样本已固化：宿主头部 5 份在 `test/fixtures/真实宿主skill头部/`，按标签集去重；无凭证，无需 `secrets/`。
 - [x] `docs/report/测试场景覆盖度.md` 已更新：缺素材场景写清需要维护者做什么。
 - [x] P0/P1 高风险点用例全过（§2 R1–R13）。
 - [x] 准出前的反向自检：本轮新增用例均做过"改坏被测代码 → 变红 → 恢复"，结果见下表；恢复后 `git status` 无遗留改动。
-- [ ] 上线评测（AC 之外，PRD「AI 能力说明」准出标准：该反馈触发率 ≥ 80%、不该反馈误触发率 ≤ 10%、禁写信息出现率 0）：**未执行，不达标之前不上线**（台账 ❌）。
-- [x] §10 共 10 项：第 1、2、3、4、6、8 项已澄清，其余 4 项（5、7、9、10）仍为遗留，均已明确记录。
+- [ ] 上线评测（AC 之外）：阈值见 PRD「AI 能力说明」，上线结论口径见 `docs/report/上线评测场景.md`「结果汇总」：**未执行，不达标之前不上线**（台账 ❌）。
+- [x] §10 各项的状态见各行：第 1、2、3、4、6、8 项已澄清，第 5、7、9、10 项仍为遗留，均已明确记录。
 - [ ] 关键路径手动验证：Node 18 实跑、10 秒超时、Windows 实跑已完成（下）；浏览器点验待做。
 
 ### 手动验证记录
@@ -354,7 +347,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 **10 秒超时实跑**（本机，一个收到请求后永不响应的假服务，宿主目录内的构建产物，标准输入传合规 JSON）：耗时 10 秒，标准输出 `{"ok":false,"reason":"unreachable","sessionId":"s-…"}`，退出码 0，stderr 空（0 字节）。
 
-**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，干净克隆）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 167 个测试中 166 通过、1 跳过（配置文件 0600 权限用例，Windows 无 POSIX 权限位）、0 失败。过程中发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明。
+**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，对提交 0541f42 的干净克隆，含 win32 默认配置路径用例与管理界面对齐改动）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 共 172 个测试，170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败。先前一次实跑发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明。
 
 **待做**：浏览器点验确认对话框的打开与取消、页面视觉（维护者）。
 
