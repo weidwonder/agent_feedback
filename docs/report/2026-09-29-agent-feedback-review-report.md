@@ -40,7 +40,7 @@ authority_refs:
 | B 存疑 / E 存疑 | PRD 要求"每条反馈标明不可信"，spec 只在响应顶层 | 改代码：每条反馈带 `notice`，spec 同步 |
 | B #3 | SameSite 实现为 Lax，与已定决策 D8（Strict）不符 | 改代码回到 Strict，不改已定决策 |
 | E #5 | 私有 skill 名可能是内部名称，建议不列入 | 不改：维护者已拍板"skill 名称本身不算禁写"；登记为待维护者确认项 |
-| E #9 | 引导语未覆盖"缺能力、不满" | 不改：引导语是维护者指定的原文；FEEDBACK.md 内的触发条件完整 |
+| E #9 | 引导语未覆盖"缺能力、不满" | 不改：引导语是维护者指定的原文（第 2 轮发现实现与原文差"时候"二字及空格，已恢复原文）；FEEDBACK.md 内的触发条件完整 |
 | E 存疑 | 提交前对本机家目录、用户名做精确匹配拦截 | 不做：超出已定范围，登记为待维护者确认项 |
 | A/B 存疑 | Node 18 首次 fetch 可能写标准错误 | 最低 Node 提到 20，提交脚本屏蔽 warning 事件 |
 
@@ -48,6 +48,38 @@ authority_refs:
 
 北京时间与常量重复（收敛到 time.ts / auth.ts）；skill 名校验两份（收敛到 shared）；`maxOccurrences` 冗余；用户名比较时序；`skillIdOf` 命名；tsconfig 未含根 test；injector 依赖写法；"近 7 天"改自然日；模块版本分布改全保留期；备份失败当天不再重试；未知 `/admin/*` 路由按登录态 302 / HTML 404；CHANGELOG 补空小节；FEEDBACK「不起草」「occurrences 1–1000」「顶层键」「待报问题留记录」；PRIVACY 补网络地址计数保留 30 天；spec 事件名、`invalid_json`、`internal`、authority_refs、环境变量单一出处；deploy.md 构建/运行 Node 版本、注入工具使用；overview D1/D14/§13；coding plan 符号与版本；评测文档 frontmatter；新增 `docs/index.md` 入口；probe-set 补 3 道探针。
 
-## 修复后
+## 第 2 轮（修复后复核）
 
-修复完成后对受影响的轴重跑（第 2 轮），结论追加在本文件末尾。
+重跑受影响的三组：组 1（A/B/C）、组 2（D）、组 4（E），基点仍为 1c3266e。第 1 轮 P0 两条均已正确落地；P1 中"维护 agent 防诱导"只落了文档，运行时拿不到，本轮补运行时通道。typecheck、build、116 个测试全部通过。
+
+各轴 P0 计数：A 0 / B 0 / C 0 / D 0 / E 0。
+
+### P1
+
+| 轴 | 问题 | 处置 |
+|---|---|---|
+| B | shared 的 `ERROR_CODES` 缺 `internal`，测试以 14 个固定了偏差 | 补 `internal`；`sendError` 的码改用 shared 类型，清单漂移直接编译失败（A 轴 P2 同源） |
+| C | 登记卡仍指向"自行比较 `LIMITS.skillName`" | 登记卡改为指向 `validateSkillName`，补权威行 |
+| D | "登记为待维护者确认项"的两条在 TODO 无落点 | 写入 `docs/TODO.md` 待澄清的问题 |
+| D | PRIVACY 承诺地址计数 30 天删除，未计备份滞留 | 改为"30 天后删除；备份中的副本最多再留 7 天" |
+| E | FEEDBACK 要求在"计划或待办里"记下待报问题，可见待办违背全程静默 | 删除该条；上下文压缩后丢记录只会少报 |
+| E | 维护 agent 的处理规则只在文档里，运行时拿不到 | 查询接口顶层 `notice` 携带三条处理规则，每条反馈上的短句不变；deploy 交令牌时同时交 `docs/query-api.md`；评测补"只靠接口响应"一组 |
+| E | FEEDBACK 的禁写豁免只写"宿主 skill 名"，窄于 PRD"skill 名称本身" | 与 PRD 一字对齐 |
+
+### 存疑的处置
+
+| 来源 | 存疑 | 结论 |
+|---|---|---|
+| A/B/C | 备份失败时旧备份不清理，违背"最多再留 7 天"；但"保留上一次成功备份"又要求不清 | 公开承诺优先：清理与备份成败脱钩，每次定时检查都按日期清理。连续失败会失去全部备份，由每天的 `backup_failed` 错误日志暴露；恢复旧备份靠库外删除日志重删，不依赖备份新旧 |
+| A/B/C | 注入工具是否预先校验名称 | 预先用 `validateSkillName` 校验，不合法直接失败、不写文件 |
+| D | nginx 示例默认记访问日志，长期留存提交方地址 | 示例关闭访问日志并注明原因 |
+| D | 评测文档展开了一份禁写清单 | 改为指向 FEEDBACK 第 6 节 |
+| E | "3 次中至少 2 次算触发"会虚高触发率 | 触发率改按运行级；误触发仍按场景级从严；两种 harness 各自计算 |
+| E | 引导语与维护者原文差"时候"二字及空格 | 恢复维护者原文，PRD、spec、代码与测试同步 |
+| E | 命令在界面上默认可见，风险表"部分运行环境"可能低估 | 不改：全程静默的边界已由 PRD 例外条款覆盖，风险表如实记录 |
+
+### P2（本轮一并处理）
+
+registry check 端点改用 `validateSkillName`；管理界面 404 统一走 `notFoundPage`；卡片与地图卡、能力登记表、依赖声明的过期表述与行号；coding plan 符号、构建目标与括注；spec §4.4 fail 文案、备份重启重试说明、authority_refs 补两条；query-api 数字改指针并补体量提示；deploy 定时与事件名改指针；probe-set 探针 #3 改指向 PRD、补 rationale-traceable；overview 删除编号表括注；评测 M01 口径、虚构素材、可见待办算"提及"；FEEDBACK §0 补 cmd、§9 进入条件；PRIVACY 会话内问答口径；PRD 目标 5 / 非目标 5 补第三个例外。
+
+修复完成后重跑受影响的轴（第 3 轮），结论追加在本文件末尾。
