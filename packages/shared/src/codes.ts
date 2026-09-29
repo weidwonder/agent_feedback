@@ -13,6 +13,7 @@ export const ERROR_CODES = [
   'invalid_status',
   'old_name',
   'name_conflict',
+  'internal',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

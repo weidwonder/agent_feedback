@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { ErrorCode } from '@agent-feedback/shared';
 
 export type Handler = (
   req: IncomingMessage,
@@ -133,11 +134,11 @@ export function sendText(res: ServerResponse, status: number, text: string): voi
 export function sendError(
   res: ServerResponse,
   status: number,
-  code: string,
+  code: ErrorCode,
   message: string,
   field?: string,
 ): void {
-  const error: { code: string; message: string; field?: string } = { code, message };
+  const error: { code: ErrorCode; message: string; field?: string } = { code, message };
   if (field !== undefined) error.field = field;
   sendJson(res, status, { error });
 }

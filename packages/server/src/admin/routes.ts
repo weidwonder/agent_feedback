@@ -237,7 +237,7 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
   );
 
   const notFound = (res: ServerResponse) =>
-    sendHtml(res, 404, '<!doctype html><meta charset="utf-8"><p>反馈不存在。<a href="/admin/feedback">返回列表</a></p>');
+    sendHtml(res, 404, notFoundPage('反馈不存在'));
 
   router.get(
     '/admin/feedback/:id',

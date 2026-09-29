@@ -45,7 +45,12 @@ describe('登记接口', () => {
       const res = await postJson(s.baseUrl, '/v1/registry', body, bearer(reg));
       assert.equal(res.status, 400);
     }
-    assert.equal((await fetch(`${s.baseUrl}/v1/registry/check`, { headers: bearer(reg) })).status, 400);
+    for (const q of ['', '?name=', '?name=%20%20', `?name=${'x'.repeat(101)}`]) {
+      const res = await fetch(`${s.baseUrl}/v1/registry/check${q}`, { headers: bearer(reg) });
+      assert.equal(res.status, 400, q);
+      const err = ((await res.json()) as { error: { code: string; field: string } }).error;
+      assert.deepEqual([err.code, err.field], ['invalid_field', 'name']);
+    }
   });
 
   it('查询令牌调用登记接口 403；无令牌与无效令牌 401；撤销后立即 401', async () => {

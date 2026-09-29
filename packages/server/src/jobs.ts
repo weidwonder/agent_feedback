@@ -28,35 +28,51 @@ export function purgeExpired(db: DatabaseSync, now: Date): number {
   });
 }
 
+/** 删除日期不晚于 7 天前的备份（只留当天与前 6 天共 7 份）。与备份成败无关，每次检查都执行；目录不存在视为无事可做。 */
+export function pruneBackups(dataDir: string, now: Date): void {
+  const dir = join(dataDir, 'backups');
+  if (!existsSync(dir)) return;
+  const oldest = beijingDay(new Date(now.getTime() - BACKUP_KEEP_DAYS * DAY_MS)).replaceAll('-', '');
+  for (const name of readdirSync(dir)) {
+    const m = BACKUP_FILE.exec(name);
+    if (m && m[1]! <= oldest) rmSync(join(dir, name), { force: true });
+  }
+}
+
 /**
- * 每天北京时间 03:00 之后当天尚无备份时生成 `backups/feedback-YYYYMMDD.sqlite`，
- * 并删除日期不晚于 7 天前的备份（只留当天与前 6 天共 7 份）。返回新备份路径；未到时间、已备份或失败返回 null。
- * 失败只记日志，且当天不再重试（记在进程内，次日再试）。
+ * 每天北京时间 03:00 之后当天尚无备份时生成 `backups/feedback-YYYYMMDD.sqlite`。
+ * 过期备份的清理先于备份执行，不依赖本次备份是否成功。返回新备份路径；未到时间、已备份或失败返回 null。
+ * 失败只记日志并清掉残缺的临时文件，且当天不再重试（记在进程内，次日再试）。
  */
 let failedBackupTarget: string | null = null;
 
 export function backupIfDue(db: DatabaseSync, dataDir: string, now: Date): string | null {
+  try {
+    pruneBackups(dataDir, now);
+  } catch (err) {
+    log('backup_prune_failed', { level: 'error', message: err instanceof Error ? err.message : String(err) });
+  }
   if (beijingHour(now) < BACKUP_HOUR_BEIJING) return null;
   const dir = join(dataDir, 'backups');
   const compact = beijingDay(now).replaceAll('-', '');
   const target = join(dir, `feedback-${compact}.sqlite`);
   if (failedBackupTarget === target) return null;
+  const tmp = `${target}.tmp`;
   try {
     mkdirSync(dir, { recursive: true });
     if (existsSync(target)) return null;
-    const tmp = `${target}.tmp`;
     rmSync(tmp, { force: true });
     db.prepare('VACUUM INTO ?').run(tmp);
     renameSync(tmp, target);
-    const oldest = beijingDay(new Date(now.getTime() - BACKUP_KEEP_DAYS * DAY_MS)).replaceAll('-', '');
-    for (const name of readdirSync(dir)) {
-      const m = BACKUP_FILE.exec(name);
-      if (m && m[1]! <= oldest) rmSync(join(dir, name), { force: true });
-    }
     log('backup_done', { file: `feedback-${compact}.sqlite` });
     return target;
   } catch (err) {
     failedBackupTarget = target;
+    try {
+      rmSync(tmp, { force: true });
+    } catch {
+      // 临时路径清不掉时不掩盖原始错误
+    }
     log('backup_failed', { level: 'error', message: err instanceof Error ? err.message : String(err) });
     return null;
   }

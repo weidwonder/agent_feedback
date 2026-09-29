@@ -153,6 +153,40 @@ describe('备份', () => {
     }
   });
 
+  it('备份失败的一天，过期旧备份仍被删除且不留残缺文件', () => {
+    const d = makeTempDir();
+    try {
+      const db = openDb(d);
+      const backups = join(d, 'backups');
+      mkdirSync(backups);
+      writeFileSync(join(backups, 'feedback-20260101.sqlite'), 'expired');
+      writeFileSync(join(backups, 'feedback-20260924.sqlite'), 'edge');
+      db.close(); // 数据库已关闭，VACUUM INTO 必然失败
+      const now = new Date('2027-01-01T19:30:00Z'); // 北京 2027-01-02 03:30
+      assert.equal(backupIfDue(db, d, now), null);
+      assert.equal(existsSync(join(backups, 'feedback-20260101.sqlite')), false, '过期备份被删除');
+      assert.equal(existsSync(join(backups, 'feedback-20260924.sqlite')), false);
+      assert.deepEqual(readdirSync(backups), [], '没有残缺备份或临时文件');
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  it('未到备份时间也照常清理过期备份', () => {
+    const d = makeTempDir();
+    try {
+      const db = openDb(d);
+      const backups = join(d, 'backups');
+      mkdirSync(backups);
+      writeFileSync(join(backups, 'feedback-20260101.sqlite'), 'expired');
+      assert.equal(backupIfDue(db, d, new Date('2026-09-29T18:59:00Z')), null, '北京 02:59');
+      assert.deepEqual(readdirSync(backups), []);
+      db.close();
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+
   it('备份失败只返回 null 不抛错', () => {
     const d = makeTempDir();
     try {

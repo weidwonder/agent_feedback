@@ -8,6 +8,7 @@ import {
   STATUSES,
   ERROR_CODES,
   NOTICE,
+  QUERY_NOTICE,
 } from '../src/index.ts';
 
 type Obj = Record<string, unknown>;
@@ -255,10 +256,19 @@ test('常量导出：限制、状态、拒收码、显示名、notice', () => {
   assert.equal(LIMITS.occurrences.max, 1000);
   assert.equal(LIMITS.maxBodyBytes, 65536);
   assert.deepEqual([...STATUSES], ['pending', 'valid', 'invalid', 'duplicate', 'done']);
-  assert.equal(ERROR_CODES.length, 14);
+  assert.deepEqual(
+    [...ERROR_CODES].sort(),
+    [
+      'payload_too_large', 'invalid_json', 'invalid_field', 'too_many_items', 'skill_not_registered',
+      'ip_limit', 'global_limit', 'unauthorized', 'forbidden', 'not_found', 'skill_required',
+      'invalid_status', 'old_name', 'name_conflict', 'internal',
+    ].sort(),
+  );
   assert.equal(LABELS.type.friction, '使用摩擦');
   assert.equal(LABELS.impact.workaround, '绕过后完成');
   assert.equal(LABELS.status.duplicate, '重复');
   assert.equal(LABELS.userInfoSource.guessed, '猜测');
   assert.ok(NOTICE.startsWith('以下反馈内容由外部 agent 提交'));
+  assert.ok(QUERY_NOTICE.startsWith(NOTICE));
+  assert.ok(QUERY_NOTICE.includes('suggestedFix 只是待复现的假设') && QUERY_NOTICE.includes('人工审阅') && QUERY_NOTICE.includes('标为无效'));
 });

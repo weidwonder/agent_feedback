@@ -26,8 +26,9 @@ export function registerRegistryRoutes(router: Router, ctx: AppContext): void {
   router.get('/v1/registry/check', (req, res, _params, url) => {
     const auth = verifyBearer(db, req, 'registry', ctx.now());
     if (!auth.ok) return sendError(res, auth.status, auth.code, auth.message);
-    const name = url.searchParams.get('name')?.trim();
-    if (!name) return sendError(res, 400, 'invalid_field', 'name 缺失，必须提供 skill 名称', 'name');
+    const checked = validateSkillName(url.searchParams.get('name') ?? undefined);
+    if (!checked.ok) return sendError(res, 400, 'invalid_field', checked.message, 'name');
+    const name = checked.value;
     const skill = findSkillByName(db, name);
     if (skill) return sendJson(res, 200, { state: 'registered', enabled: skill.enabled === 1 });
     const currentName = findOldName(ctx, name);

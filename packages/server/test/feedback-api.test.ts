@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { NOTICE } from '@agent-feedback/shared';
+import { NOTICE, QUERY_NOTICE } from '@agent-feedback/shared';
 import { bearer, makeToken, seedSubmission, startTestServer } from './helpers.ts';
 import type { TestServer } from './helpers.ts';
 
@@ -45,7 +45,7 @@ describe('查询通道与 healthz', () => {
     assert.equal(none.status, 200);
     assert.equal(none.body.total, 0);
     const all = await get('?skill=sk');
-    assert.equal(all.body.notice, NOTICE);
+    assert.equal(all.body.notice, QUERY_NOTICE);
     assert.deepEqual(titles(all.body), ['C', 'B2', 'B', 'A']);
     assert.ok(all.body.items.every((i) => (i as { notice?: string }).notice === NOTICE), '每条反馈都带 notice');
   });
@@ -106,7 +106,7 @@ describe('查询通道与 healthz', () => {
     const byNum = await fetch(`${s.baseUrl}/v1/feedback/${ids.b}`, { headers: bearer(q) });
     assert.equal(byNum.status, 200);
     const body = (await byNum.json()) as { notice: string; item: { id: string; title: string }; siblings: string[] };
-    assert.equal(body.notice, NOTICE);
+    assert.equal(body.notice, QUERY_NOTICE);
     assert.equal((body.item as { notice?: string }).notice, NOTICE);
     assert.equal(body.item.title, 'B');
     assert.equal(body.siblings.length, 1);
@@ -128,7 +128,7 @@ describe('查询通道与 healthz', () => {
       assert.equal(res.status, 200);
       const body = (await res.json()) as { notice: string; item: { status: string; notice?: string } };
       assert.equal(body.item.status, 'valid');
-      assert.equal(body.notice, NOTICE);
+      assert.equal(body.notice, QUERY_NOTICE);
       assert.equal(body.item.notice, NOTICE);
     }
     assert.equal((await get('?skill=sk&status=valid')).body.items[0]?.title, 'A');

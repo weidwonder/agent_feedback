@@ -158,6 +158,7 @@ describe('inject', () => {
     assert.deepEqual(JSON.parse(readFileSync(join(m, 'config.json'), 'utf8')), { endpoint, moduleVersion: '1.2.3' });
     const skill = readFileSync(join(host, 'SKILL.md'), 'utf8');
     assert.equal(skill.split('<!-- agent-feedback -->').length - 1, 1);
+    assert.ok(skill.endsWith('\n\n<!-- agent-feedback -->\n> skill反馈优化技能，请在用户skill处理不顺利、出错时候加载：阅读本 skill 目录下的 `agent-feedback/FEEDBACK.md` 并按其规则执行。\n'));
     assert.ok(skill.startsWith(SKILL_MD));
     assert.ok(seenAuth.every((h) => h === `Bearer ${TOKEN}`));
     for (const f of [...readdirSync(m).map((n) => join(m, n)), join(host, 'SKILL.md')]) {
@@ -202,6 +203,19 @@ describe('inject', () => {
     const r2 = await run(injectArgs());
     assert.equal(r2.code, 1);
     assert.match(r2.stderr, /没有 SKILL\.md/);
+  });
+
+  it('name 超长不合法：拒绝并说明原因，不写文件、不登记', async () => {
+    await configure();
+    writeFileSync(join(host, 'SKILL.md'), `---\nname: ${'x'.repeat(101)}\n---\n正文\n`);
+    const before = snapshot(host);
+    seenAuth.length = 0;
+    const r = await run(injectArgs());
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /name 不合法/);
+    assert.match(r.stderr, /1–100/);
+    assert.deepEqual(snapshot(host), before);
+    assert.equal(seenAuth.length, 0, '未发起任何检查或登记请求');
   });
 
   it('旧名：拒绝并提示现名', async () => {

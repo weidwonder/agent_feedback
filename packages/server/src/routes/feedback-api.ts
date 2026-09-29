@@ -1,4 +1,4 @@
-import { FEEDBACK_TYPES, IMPACTS, LIMITS, NOTICE, STATUSES } from '@agent-feedback/shared';
+import { FEEDBACK_TYPES, IMPACTS, LIMITS, NOTICE, QUERY_NOTICE, STATUSES } from '@agent-feedback/shared';
 import type { FeedbackType, Impact, Status } from '@agent-feedback/shared';
 import type { AppContext } from '../app.ts';
 import { verifyBearer } from '../auth.ts';
@@ -91,7 +91,7 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
       throw err;
     }
     const { total, items } = listFeedback(db, filters);
-    sendJson(res, 200, { notice: NOTICE, total, items: items.map(withNotice) });
+    sendJson(res, 200, { notice: QUERY_NOTICE, total, items: items.map(withNotice) });
   });
 
   router.get('/v1/feedback/:id', (req, res, params) => {
@@ -100,7 +100,7 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
     const id = parseFeedbackId(params.id!);
     const found = id === null ? null : getFeedback(db, id);
     if (!found) return sendError(res, 404, 'not_found', `反馈 ${params.id} 不存在`);
-    sendJson(res, 200, { notice: NOTICE, item: withNotice(found.item), siblings: found.siblings });
+    sendJson(res, 200, { notice: QUERY_NOTICE, item: withNotice(found.item), siblings: found.siblings });
   });
 
   router.patch('/v1/feedback/:id', async (req, res, params) => {
@@ -126,6 +126,6 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
     const id = parseFeedbackId(params.id!);
     const item = id === null ? null : setStatus(db, id, status as Status, ctx.now());
     if (!item) return sendError(res, 404, 'not_found', `反馈 ${params.id} 不存在`);
-    sendJson(res, 200, { notice: NOTICE, item: withNotice(item) });
+    sendJson(res, 200, { notice: QUERY_NOTICE, item: withNotice(item) });
   });
 }

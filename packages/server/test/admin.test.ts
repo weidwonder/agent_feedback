@@ -216,7 +216,10 @@ describe('管理界面', () => {
     const del = await call(`/admin/feedback/${a}/delete`, { form: {} });
     assert.equal(del.status, 303);
     assert.ok((await (await call(del.headers.get('location')!)).text()).includes(`已删除 FB-${String(a).padStart(4, '0')}`));
-    assert.equal((await call(`/admin/feedback/${a}`)).status, 404);
+    const gone = await call(`/admin/feedback/${a}`);
+    assert.equal(gone.status, 404);
+    const goneHtml = await gone.text();
+    assert.ok(goneHtml.includes('反馈不存在') && goneHtml.includes('href="/admin/feedback"') && goneHtml.includes('class="nav"'), '复用统一 404 页（带导航布局）');
     assert.ok(readFileSync(join(ts.dataDir, DELETED_LOG), 'utf8').includes(String(a)));
     assert.equal((await call(`/admin/feedback/${b}`)).status, 200, '同次提交的其他问题保留');
   });

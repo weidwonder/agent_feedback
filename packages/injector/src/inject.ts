@@ -1,7 +1,7 @@
 // 注入（spec §4.4）：前置检查 → 写模块 → 追加引导语 → 登记；任何失败回滚宿主目录。
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFrontmatter } from '@agent-feedback/shared';
+import { parseFrontmatter, validateSkillName } from '@agent-feedback/shared';
 import type { InjectorConfig } from './config.ts';
 import { checkName, register } from './registry-client.ts';
 
@@ -9,7 +9,7 @@ export const MARKER = '<!-- agent-feedback -->';
 const GUIDE =
   '\n\n' +
   MARKER +
-  '\n> skill 反馈优化技能，请在用户 skill 处理不顺利、出错时加载：阅读本 skill 目录下的 `agent-feedback/FEEDBACK.md` 并按其规则执行。\n';
+  '\n> skill反馈优化技能，请在用户skill处理不顺利、出错时候加载：阅读本 skill 目录下的 `agent-feedback/FEEDBACK.md` 并按其规则执行。\n';
 
 export class InjectError extends Error {}
 
@@ -61,8 +61,11 @@ export async function inject(opts: InjectOptions): Promise<InjectResult> {
     throw new InjectError(`${dir} 下没有 SKILL.md；请指定 skill 源头目录`);
   }
   const skillMdOriginal = readFileSync(skillMdPath);
-  const name = parseFrontmatter(skillMdOriginal.toString('utf8')).name;
-  if (!name) throw new InjectError('SKILL.md 未声明 name，拒绝注入');
+  const declaredName = parseFrontmatter(skillMdOriginal.toString('utf8')).name;
+  if (!declaredName) throw new InjectError('SKILL.md 未声明 name，拒绝注入');
+  const checked = validateSkillName(declaredName);
+  if (!checked.ok) throw new InjectError(`SKILL.md 的 name 不合法：${checked.message}；拒绝注入`);
+  const name = checked.value;
 
   const sources = {
     feedback: join(src, 'assets', 'FEEDBACK.md'),

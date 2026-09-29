@@ -76,8 +76,8 @@ function layout(title: string, active: NavKey, body: string): string {
 const flashBox = (msg: string | null, isError = false): string =>
   msg ? `<div class="flash${isError ? ' error' : ''}">${e(msg)}</div>` : '';
 
-export function notFoundPage(): string {
-  return layout('页面不存在', 'feedback', '<div class="card"><h2>页面不存在</h2><p><a href="/admin/feedback">返回反馈列表</a></p></div>');
+export function notFoundPage(title = '页面不存在'): string {
+  return layout(title, 'feedback', `<div class="card"><h2>${e(title)}</h2><p><a href="/admin/feedback">返回反馈列表</a></p></div>`);
 }
 
 export function loginPage(error: string | null): string {
