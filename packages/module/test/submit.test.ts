@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -332,6 +332,12 @@ const realDir = join(repoRoot, 'test', 'fixtures', '真实宿主skill头部');
 const realCases = Object.entries(
   JSON.parse(readFileSync(join(realDir, 'expected.json'), 'utf8')) as Record<string, { name: string; version?: string } | null>,
 );
+// 防漏登记：expected.json 的键集合必须等于样本目录下 SKILL-*.md 的文件名集合
+test('expected.json 登记的样本与目录下 SKILL-*.md 一致', () => {
+  const files = readdirSync(realDir).filter((f) => /^SKILL-.*\.md$/.test(f)).sort();
+  assert.ok(files.length > 0);
+  assert.deepEqual(realCases.map(([f]) => f).sort(), files);
+});
 for (const [file, expected] of realCases) {
   test(`真实宿主头部 ${file}：--dry-run 的 skill 字段`, async () => {
     const host = makeHost({ skillMd: readFileSync(join(realDir, file), 'utf8') });

@@ -200,6 +200,18 @@ describe('管理界面', () => {
     assert.equal((p2.match(/分页问题\d+/g) ?? []).length, 5);
   });
 
+  it('列表页码越界时收回到最后一页，总数为 0 时仍无分页栏', async () => {
+    seedSubmission(ts.db, {
+      skill: 'oob-skill',
+      items: Array.from({ length: 25 }, (_, i) => ({ title: `越界问题${i}` })),
+    });
+    const html = await (await call('/admin/feedback?skill=oob-skill&page=99')).text();
+    assert.equal((html.match(/越界问题\d+/g) ?? []).length, 5, '渲染最后一页的 5 条');
+    assert.ok(html.includes('第 2 页，共 2 页'));
+    const empty = await (await call('/admin/feedback?skill=nope-oob&page=99')).text();
+    assert.ok(empty.includes('共 0 条') && !empty.includes('页，共'));
+  });
+
   it('列表只有一页时也显示"第 1 页，共 1 页"', async () => {
     seedSubmission(ts.db, { skill: 'one-page-skill', items: [{ title: '唯一问题' }] });
     assert.ok((await (await call('/admin/feedback?skill=one-page-skill')).text()).includes('第 1 页，共 1 页'));
