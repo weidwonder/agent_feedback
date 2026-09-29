@@ -183,6 +183,8 @@ describe('管理界面', () => {
 
     const empty = await (await call('/admin/feedback?skill=nope')).text();
     assert.ok(empty.includes('没有符合条件的反馈') && empty.includes('清除全部筛选'));
+    assert.ok(empty.includes('共 0 条'));
+    assert.ok(!empty.includes('class="pager"') && !empty.includes('页，共'), '空态不输出分页栏');
     assert.equal((await call('/admin/feedback?page=abc&type=bogus&from=xx')).status, 200);
   });
 

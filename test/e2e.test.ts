@@ -164,8 +164,10 @@ describe('端到端：从部署到维护 agent 读回反馈', () => {
         const res = await fetch(`${baseUrl}/healthz`);
         ok = res.status === 200 && (await res.text()).trim() === 'ok';
       } catch {
-        await new Promise((r) => setTimeout(r, 100));
+        // 服务尚未监听：落到下面统一等待
       }
+      // 每一轮都等待（无论抛错还是返回非就绪），避免零间隔空转
+      if (!ok) await new Promise((r) => setTimeout(r, 100));
     }
     assert.ok(ok, `服务未在时限内就绪：\n${serverLog}`);
   };

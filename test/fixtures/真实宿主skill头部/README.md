@@ -14,12 +14,4 @@
 
 去重说明：另有 3 类真实头部（metadata 双引号版本、无 metadata、顶层 version 且 metadata 无版本）的标签集分别是上表某一行的子集，按淘汰规则未收。
 
-预期（由头部原文手工读出，见使用它们的测试）：
-
-| 样本 | 名称 | 版本 |
-|---|---|---|
-| 名称含冒号… | `ak:tech-graph` | `1.1.1` |
-| 无metadata… | `freshrss` | 无 |
-| 顶层version… | `lark-whiteboard` | 无（版本只认 metadata 下的 version） |
-| metadata单引号… | `agentic-principle` | `0.10.0` |
-| 无frontmatter | 读不到名称 | — |
+预期的名称与版本（读不到名称的样本为 `null`）集中记录在同目录的 `expected.json`，由头部原文手工读出，供各包测试共用。

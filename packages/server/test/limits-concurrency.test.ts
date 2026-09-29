@@ -1,4 +1,6 @@
-// 并发下的额度守恒：同时到达的提交不超额、计数不丢。
+// 同时到达的请求下的额度守恒。
+// 说明：服务是单事件循环 + 同步 SQLite，把关到落库之间没有异步间隙，因此本文件不证明"并发竞争安全"；
+// 它守护的是：同时到达的请求按顺序处理后计数守恒，且全站计数在事务内先读后写（不超额、不丢计数）。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { getCounter, getRejectionCount } from '../src/counters.ts';
@@ -8,7 +10,7 @@ import { count, postJson, registerSkill, startTestServer, validBody } from './he
 const codeOf = async (res: Response): Promise<string> => ((await res.json()) as { error: { code: string } }).error.code;
 
 describe('并发额度', () => {
-  it('全站上限 3：10 个来源各异的合规请求同时到达，恰好收录 3 次，其余 429 global_limit，被拒的不计入收录', async () => {
+  it('同时到达的请求按顺序守恒（全站上限 3）：10 个来源各异的合规请求同时到达，恰好收录 3 次，其余 429 global_limit，被拒的不计入收录', async () => {
     const s = await startTestServer({ env: { GLOBAL_DAILY_LIMIT: '3' } });
     try {
       registerSkill(s.db, 'race-skill');
@@ -29,7 +31,7 @@ describe('并发额度', () => {
     }
   });
 
-  it('同一来源上限 5：9 个请求同时到达，恰好 5 个进入处理，其余 429 ip_limit，来源计数为 9', async () => {
+  it('同时到达的请求按顺序守恒（同一来源上限 5）：9 个请求同时到达，恰好 5 个进入处理，其余 429 ip_limit，来源计数为 9', async () => {
     const s = await startTestServer({ env: { IP_DAILY_LIMIT: '5' } });
     try {
       registerSkill(s.db, 'race-skill');

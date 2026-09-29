@@ -1,6 +1,6 @@
 // 安全与隐私：XSS 转义、令牌越权、日志不含敏感信息、拒收内容不落盘。
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { setAdmin } from '../src/auth.ts';
@@ -9,6 +9,17 @@ import { bearer, count, makeToken, postJson, registerSkill, seedSubmission, star
 import type { TestServer } from './helpers.ts';
 
 const PASSWORD = 'correct horse battery';
+
+// 递归列出目录下所有文件（含子目录），避免漏查子目录里的落盘内容
+function listFilesRecursive(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) out.push(...listFilesRecursive(p));
+    else out.push(p);
+  }
+  return out;
+}
 
 describe('安全与隐私', () => {
   let ts: TestServer;
@@ -169,7 +180,7 @@ describe('安全与隐私', () => {
     // 收录的对照
     assert.equal((await postJson(ts.baseUrl, '/v1/submissions', withItem('privacy-skill', 'accepted'))).status, 201);
 
-    const haystack = readdirSync(ts.dataDir).map((f) => readFileSync(join(ts.dataDir, f)));
+    const haystack = listFilesRecursive(ts.dataDir).map((f) => readFileSync(f));
     const found = (k: string) => haystack.some((buf) => buf.includes(mark(k)));
     assert.equal(found('accepted'), true, '对照：收录的内容应在数据文件中（否则本检查没有意义）');
     for (const k of ['unreg', 'inv', 'badjson', 'big']) assert.equal(found(k), false, `拒收内容 ${k} 不应落盘`);
