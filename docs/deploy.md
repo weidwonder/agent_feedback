@@ -4,33 +4,22 @@ superseded_by: ''
 archived: ''
 last_confirmed: '2026-09-29'
 authority_refs:
-  - 服务端环境变量表
-  - 服务端 CLI（serve / set-admin）
   - packages/server/deploy 下的 systemd 单元与反向代理示例
   - 数据目录布局与备份恢复步骤
+  - 注入工具的构建与使用步骤
 ---
 
 # 部署与运维
 
-收集服务是单进程 Node 程序（`node:http` + `node:sqlite`），无第三方运行时依赖。契约以 `docs/spec/2026-09-29-agent-feedback-eng-spec.md` 为准，本文只写部署与运维步骤。
+收集服务是单进程 Node 程序（`node:http` + `node:sqlite`），无第三方运行时依赖。契约以 `docs/spec/2026-09-29-agent-feedback-eng-spec.md` 为准（环境变量表见 §6，命令行契约见 §3），本文只写部署与运维步骤。
 
 ## 环境变量
 
-全部来自环境变量，启动时校验；非法值启动失败并报出变量名。不支持热加载，改配置需重启。
-
-| 变量 | 类型 | 必填 | 默认 | 说明 |
-|---|---|---|---|---|
-| `PORT` | int | 否 | 8787 | 监听端口 |
-| `HOST` | string | 否 | 127.0.0.1 | 监听地址；放在反向代理后面时保持默认 |
-| `DATA_DIR` | path | 否 | `./data` | 数据目录：数据库、备份、删除编号日志 |
-| `TRUST_PROXY` | 0/1 | 否 | 0 | 为 1 时来源地址取 `X-Forwarded-For` 最后一段；只在服务前面确有反向代理时开启，否则来源地址可被伪造 |
-| `COOKIE_SECURE` | 0/1 | 否 | 1 | 管理界面 cookie 带 `Secure`；仅在无 HTTPS 的本地试用时设 0 |
-| `IP_DAILY_LIMIT` | int ≥ 1 | 否 | 5 | 同一来源地址每个北京时间自然日最多的提交请求数（含被拒的） |
-| `GLOBAL_DAILY_LIMIT` | int ≥ 1 | 否 | 500 | 全站每个北京时间自然日最多收录的提交数 |
+全部来自环境变量，启动时校验，改配置需重启。变量名、类型、默认值以 spec §6 的配置表为唯一出处，本文不复述。部署时最常动的三项：`DATA_DIR`（数据目录）、`TRUST_PROXY`（放在反向代理后面且代理追加了 `X-Forwarded-For` 时设 1，否则来源地址可被伪造）、`COOKIE_SECURE`（默认 1；仅无 HTTPS 的本地试用时设 0）。
 
 ## 首次部署
 
-1. 安装 Node ≥ 22.13（`node --version` 确认）。`node:sqlite` 在 Node 22 会打印 `ExperimentalWarning`，无害；systemd 单元已加 `--disable-warning=ExperimentalWarning`。
+1. 服务器运行需要 Node ≥ 22.13（`node --version` 确认）；构建与测试需要 Node ≥ 22.18（内置类型剥离）。构建可以在别处完成，服务器只装运行版本即可。`node:sqlite` 在 Node 22 会打印 `ExperimentalWarning`，无害；systemd 单元已加 `--disable-warning=ExperimentalWarning`。
 2. 取得代码并构建（需要联网装开发依赖 `esbuild`、`typescript`）：
 
    ```sh
@@ -71,7 +60,7 @@ authority_refs:
 | 路径 | 内容 |
 |---|---|
 | `<DATA_DIR>/feedback.sqlite` | 数据库 |
-| `<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite` | 每日备份，保留 7 天 |
+| `<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite` | 每日备份，只保留最近 7 份 |
 | `<DATA_DIR>/deleted-ids.log` | 已删除反馈的编号日志，只追加；不进备份 |
 
 ## 定时任务
@@ -80,11 +69,11 @@ authority_refs:
 
 - 启动时：按删除编号日志重删、执行一次到期清理。
 - 每小时：同上。反馈满 6 个月（按收录时间、北京时间）删除；30 天前的计数与拒收统计、过期会话一并清理。
-- 每天北京时间 03:00 之后：生成当天备份（`VACUUM INTO`），删除 7 天前的备份。备份失败只记日志（关键字 `backup_failed`），次日重试。
+- 每天北京时间 03:00 之后：生成当天备份（`VACUUM INTO`），只保留最近 7 份（当天与前 6 天）。备份失败只记日志（关键字 `backup_failed`），当天不再重试，次日 03:00 之后再试。
 
 ## 日志
 
-写 stdout，由 systemd journal 收集，每行 `key=value`。事件名：`request`、`submission_accepted`、`submission_rejected`、`purge_done`、`backup_done`、`backup_failed`、`deleted_log_applied`、`startup`。日志不含请求体、令牌、密码、cookie。
+写 stdout，由 systemd journal 收集，每行 `key=value`。事件名：`request`、`submission_accepted`、`submission_rejected`、`purge_done`、`backup_done`、`backup_failed`、`deleted_log_applied`、`startup`、`request_error`（请求处理异常）、`job_failed`（定时任务异常）、`login_blocked`（登录失败超限被拒）、`login_failed`（登录失败）。日志不含请求体、令牌、密码、cookie。
 
 ## 备份恢复
 
@@ -103,3 +92,33 @@ authority_refs:
 ## 升级
 
 拉新代码、重新构建、`systemctl restart agent-feedback`。建表语句是幂等的，启动时自动执行。
+
+## 注入工具的构建与使用
+
+注入工具在维护者本机运行，把反馈模块写进宿主 skill 的源头目录并向收集服务登记。
+
+1. 构建（在本仓根目录，Node ≥ 22.18）：
+
+   ```sh
+   npm install
+   npm run build
+   ```
+
+   产物：`packages/injector/dist/agent-feedback.mjs`。
+2. 配置实例（令牌从标准输入读取，终端下不回显；写入本机配置文件，权限 0600）：
+
+   ```sh
+   node packages/injector/dist/agent-feedback.mjs config --endpoint <服务地址>
+   ```
+
+   令牌是管理界面生成的登记令牌。
+3. 注入：
+
+   ```sh
+   node packages/injector/dist/agent-feedback.mjs inject <skill 源头目录>
+   ```
+
+   注入对象必须是 skill 的源头目录，不是安装副本：安装器会整目录覆盖安装副本，注入的内容随之丢失。目录下出现 `agent-feedback/` 子目录，`SKILL.md` 末尾追加引导语，并在服务上登记该 skill 名称。新登记的 skill 默认启用；已登记但被停用的会提示到管理界面启用。
+4. 注入后按宿主仓库自己的流程补配套改动，例如目录白名单、规范句去重、体积预算、变更记录。工具完成后会打印这条提示。
+
+重复注入是升级：模块文件覆盖为当前版本，引导语只出现一次。登记失败或写文件出错时，宿主文件恢复到注入前的样子，命令以退出码 1 结束。
