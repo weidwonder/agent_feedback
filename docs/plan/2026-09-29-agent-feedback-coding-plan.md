@@ -44,7 +44,7 @@ authority_refs:
 - Modify: `.gitignore` 追加 `dist/`、`data/`
 
 **Interfaces（Produces）:**
-- `LIMITS`（常量对象：各字段长度上下限、`maxItems: 5`、`maxRelatedSkills: 10`、`maxOccurrences: 1000`、`maxBodyBytes: 65536`）
+- `LIMITS`（常量对象：各字段长度上下限、`maxItems: 5`、`maxRelatedSkills: 10`、`occurrences: {min:1,max:1000}`、`maxBodyBytes: 65536`）
 - `FEEDBACK_TYPES`、`IMPACTS`、`STATUSES`（`['pending','valid','invalid','duplicate','done']`）、`USER_INFO_SOURCES`、`OS_VALUES` 只读元组，以及对应 TS 联合类型 `FeedbackType`、`Impact`、`Status`、`UserInfoSource`、`OsValue`
 - `ERROR_CODES` 与类型 `ErrorCode`（spec §2.1 拒收码全集）
 - `LABELS`：`{ type: Record<FeedbackType,string>, impact: ..., status: ..., userInfoSource: ... }` 中文显示名
@@ -84,7 +84,7 @@ authority_refs:
 - Create: `packages/server/src/routes/submissions.ts`、`routes/registry.ts`、`routes/feedback-api.ts`、`routes/health.ts`
 - Create: `packages/server/src/app.ts`（`createApp(ctx: AppContext): http.RequestListener`；`AppContext = { db, config, dataDir, now: () => Date }`；为 Task 5 预留 `mountAdmin(router, ctx)` 挂载点：Task 2 中实现为空函数文件 `src/admin/index.ts` 导出 `mountAdmin`，Task 5 负责填充）
 - Create: `packages/server/deploy/agent-feedback.service`、`packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`
-- Create: `docs/deploy.md`（frontmatter `lifecycle: active`、`authority_refs`；环境变量表与 spec §6 一致；首次部署：安装 Node ≥22.13、构建、`set-admin`、systemd、反代、生成令牌；备份位置与恢复步骤）
+- Create: `docs/deploy.md`（frontmatter `lifecycle: active`、`authority_refs`；环境变量表与 spec §6 一致；首次部署：安装 Node ≥22.13（当时口径为 Node ≥22.13，现行见 `docs/deploy.md`）、构建、`set-admin`、systemd、反代、生成令牌；备份位置与恢复步骤）
 - Test: `packages/server/test/helpers.ts`（起临时 DATA_DIR 与随机端口服务、造令牌、造 skill 的辅助函数）、`test/submissions.test.ts`、`test/registry.test.ts`、`test/feedback-api.test.ts`、`test/jobs.test.ts`、`test/set-admin.test.ts`
 
 **Interfaces（Produces，供 Task 5 使用）:**
@@ -105,12 +105,12 @@ authority_refs:
 **Slice:** 在临时宿主目录里用 submit.mjs 发出一份合规请求 ｜ **依赖：** Task 1 ｜ **满足:** FR-018, FR-019, FR-020, FR-021
 
 **Files:**
-- Create: `packages/module/package.json`（name `@agent-feedback/module`，`version: "1.0.0"`，dependencies shared，script `build`=`esbuild src/submit.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/submit.mjs`）
+- Create: `packages/module/package.json`（name `@agent-feedback/module`，`version: "1.0.0"`，dependencies shared，script `build`=`esbuild src/submit.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/submit.mjs`）
 - Create: `packages/module/src/submit.ts`（spec §4.3；frontmatter 用 shared 的 `parseFrontmatter`）
 - Create: `packages/module/assets/FEEDBACK.md`、`packages/module/assets/PRIVACY.md`、`packages/module/assets/gitignore`（内容 `.runtime/`）
 - Test: `packages/module/test/submit.test.ts`（先 `npm run build -w @agent-feedback/module`，再在临时目录布置 `SKILL.md` + `agent-feedback/{submit.mjs,config.json}`，用 `child_process.spawnSync` 喂 stdin 执行；用 `http.createServer` 起本地假服务收请求）
 
-**FEEDBACK.md 编写要求:** 动手前 MUST 加载 `skill-principle` skill（找不到时读 `~/.claude/skills/skill-principle/SKILL.md`）按其对指令文本的要求写；MUST 覆盖 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md` §反馈模块：agent 的行为规则 的全部条目与 §提交的信息 两张表的填写说明，以及 spec FR-020 列表；给出完整调用示例（heredoc 传 JSON，含全部字段）、结果处理（ok:false 各 reason 的动作：invalid 修正后最多重试一次；其余放弃且本会话不再提交；unreachable 不计入 2 次）、运行环境查找与安装步骤（先 `node --version`（≥20 可用）→ 再找 `agent-feedback/.runtime/node*/bin/node`（Windows 为 `.runtime\node*\node.exe`）→ 都没有时尝试一次把官方 Node 发行包下载解压到 `agent-feedback/.runtime/`，国内网络优先 `https://npmmirror.com/mirrors/node/`，失败或被拒就放弃且本会话不再尝试）；禁写清单；"使用者直接问起时如实说明"；"不向使用者提及反馈"。文本 SHOULD ≤ 250 行。
+**FEEDBACK.md 编写要求:** 动手前 MUST 加载 `skill-principle` skill（找不到时读 `~/.claude/skills/skill-principle/SKILL.md`）按其对指令文本的要求写；MUST 覆盖 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md` §反馈模块：agent 的行为规则 的全部条目与 §提交的信息 两张表的填写说明，以及 spec FR-020 列表；给出完整调用示例（heredoc 传 JSON，含全部字段）、结果处理（ok:false 各 reason 的动作：invalid 修正后最多重试一次；其余放弃且本会话不再提交；unreachable 不计入 2 次）、运行环境查找与安装步骤（先 `node --version`（≥20 可用）→ 再找 `agent-feedback/.runtime/node*/bin/node`（Windows 为 `.runtime\node*\node.exe`）→ 都没有时尝试一次把官方 Node 发行包下载解压到 `agent-feedback/.runtime/`，国内网络优先 `https://npmmirror.com/mirrors/node/`，失败或被拒就放弃且本会话不再尝试；当时口径为此，现行见 `packages/module/assets/FEEDBACK.md` 第 9 节）；禁写清单；"使用者直接问起时如实说明"；"不向使用者提及反馈"。文本 SHOULD ≤ 250 行。
 **PRIVACY.md 编写要求:** 面向使用者，业务语言；列收集字段、不收集的内容、保留 6 个月及删除后备份最多滞留 7 天、用途（只供 skill 维护者改进 skill，不用于训练）、关闭方法 `AGENT_FEEDBACK_DISABLED=1`。
 
 **测试要求:** AC-014、AC-016（`.gitignore` 资产内容）。

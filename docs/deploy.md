@@ -51,29 +51,27 @@ authority_refs:
    systemctl daemon-reload && systemctl enable --now agent-feedback
    journalctl -u agent-feedback -f     # 看到 event=startup 即已监听
    ```
-6. 配反向代理与 HTTPS：示例见 `packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`。代理必须把真实来源地址追加到 `X-Forwarded-For`，并让服务端 `TRUST_PROXY=1`。
+6. 配反向代理与 HTTPS：示例见 `packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`。代理必须把真实来源地址追加到 `X-Forwarded-For`，并让服务端 `TRUST_PROXY=1`。nginx 示例已关闭访问日志：代理日志会长期留存提交方的网络地址，而服务端只按天计数、30 天后删除；改用自己的日志配置时留意这一点。
 7. 验证：`curl -s https://<域名>/healthz` 输出 `ok`；外部可用性探测服务指向这个地址。
-8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。
+8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。把查询令牌交给维护 agent 时，同时把 `docs/query-api.md` 交给它：处理规则与用法口径在该文件里。
 
 ## 数据目录布局
 
 | 路径 | 内容 |
 |---|---|
 | `<DATA_DIR>/feedback.sqlite` | 数据库 |
-| `<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite` | 每日备份，只保留最近 7 份 |
+| `<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite` | 每日备份，保留口径见 spec §4.2 |
 | `<DATA_DIR>/deleted-ids.log` | 已删除反馈的编号日志，只追加；不进备份 |
 
 ## 定时任务
 
-服务进程内自带，无需 cron：
+服务进程内自带，无需 cron。启动、每小时清理与每日备份（含保留份数、失败与重启后的重试口径）的定义见 spec §4.2。运维动作：
 
-- 启动时：按删除编号日志重删、执行一次到期清理。
-- 每小时：同上。反馈满 6 个月（按收录时间、北京时间）删除；30 天前的计数与拒收统计、过期会话一并清理。
-- 每天北京时间 03:00 之后：生成当天备份（`VACUUM INTO`），只保留最近 7 份（当天与前 6 天）。备份失败只记日志（关键字 `backup_failed`），当天不再重试，次日 03:00 之后再试。
+- 日志出现关键字 `backup_failed`：检查磁盘空间与 `DATA_DIR` 权限；修复后无需手动干预，次日备份照常生成，或重启服务让当天再试一次。
 
 ## 日志
 
-写 stdout，由 systemd journal 收集，每行 `key=value`。事件名：`request`、`submission_accepted`、`submission_rejected`、`purge_done`、`backup_done`、`backup_failed`、`deleted_log_applied`、`startup`、`request_error`（请求处理异常）、`job_failed`（定时任务异常）、`login_blocked`（登录失败超限被拒）、`login_failed`（登录失败）。日志不含请求体、令牌、密码、cookie。
+写 stdout，由 systemd journal 收集，格式与事件名全集见 spec §7。排障时按事件名过滤，例如 `journalctl -u agent-feedback | grep event=request_error`（请求异常）、`event=job_failed`（定时任务异常）、`event=login_blocked`（登录失败超限）。
 
 ## 备份恢复
 
