@@ -1,5 +1,8 @@
 import type { AppContext } from '../app.ts';
 import type { Router } from '../http.ts';
+import { registerAdminRoutes } from './routes.ts';
 
-/** 管理界面挂载点；路由由后续任务填充。 */
-export function mountAdmin(_router: Router, _ctx: AppContext): void {}
+/** 挂载管理界面（服务端渲染，会话 cookie 鉴权）。 */
+export function mountAdmin(router: Router, ctx: AppContext): void {
+  registerAdminRoutes(router, ctx);
+}
