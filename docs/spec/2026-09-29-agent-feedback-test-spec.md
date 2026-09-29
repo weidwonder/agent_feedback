@@ -10,7 +10,7 @@ authority_refs:
 # agent-feedback_测试方案 — 反馈收集服务、反馈模块与注入工具
 
 > 只覆盖本仓（四个包：`packages/shared`、`server`、`module`、`injector`）。功能代码已开发完成。
-> 上游：PRD `docs/spec/2026-09-29-agent-feedback-PRD.md`、原型 `docs/spec/2026-09-29-agent-feedback-prototype.html`（界面与逐元素说明已用 `preview.mjs extract` 与 `annotations` 取回，共 9 条说明、0 条用户批注）、Overview `docs/spec/2026-09-29-agent-feedback-overview.md`、技术 Spec `docs/spec/2026-09-29-agent-feedback-eng-spec.md`（FR-001–026、AC-001–025）、Coding Plan `docs/plan/2026-09-29-agent-feedback-coding-plan.md`。
+> 上游：需求真相源 `docs/REQUIREMENTS.md`；设计输入为已归并归档的 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md`、原型 `docs/spec/2026-09-29-agent-feedback-prototype.html`（界面与逐元素说明已用 `preview.mjs extract` 与 `annotations` 取回，共 9 条说明、0 条用户批注）、Overview `docs/spec/2026-09-29-agent-feedback-overview.md`、技术 Spec `docs/spec/2026-09-29-agent-feedback-eng-spec.md`（FR-001–026、AC-001–025）、Coding Plan `docs/plan/2026-09-29-agent-feedback-coding-plan.md`。
 > 覆盖度台账：`docs/report/测试场景覆盖度.md`。协作面 solo：单接口部分压缩为关键路径；长链路端到端不压缩，每环中间产物都有断言。
 > 代码事实来源（`ctx get-card agent-feedback <域>`，确认日期 2026-09-29）：`engineering-context/cards/agent-feedback/提交收录.md`、`登记.md`、`查询通道.md`、`管理界面.md`、`反馈模块.md`、`注入.md`。卡片没有覆盖的事实读源码，标在句末。
 
@@ -330,7 +330,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 - [x] `docs/report/测试场景覆盖度.md` 已更新：缺素材场景写清需要维护者做什么。
 - [x] P0/P1 高风险点用例全过（§2 R1–R13）。
 - [x] 准出前的反向自检：本轮新增用例均做过"改坏被测代码 → 变红 → 恢复"，结果见下表；恢复后 `git status` 无遗留改动。
-- [ ] 上线评测（AC 之外）：阈值见 PRD「AI 能力说明」，上线结论口径见 `docs/report/上线评测场景.md`「结果汇总」：**未执行，不达标之前不上线**（台账 ❌）。
+- [ ] 上线评测（AC 之外）：阈值见 `docs/REQUIREMENTS.md`「服务质量要求」的上线评测准出，上线结论口径见 `docs/report/上线评测场景.md`「结果汇总」：**未执行，不达标之前不上线**（台账 ❌）。
 - [x] §10 各项的状态见各行：第 1、2、3、4、6、8 项已澄清，第 5、7、9、10 项仍为遗留，均已明确记录。
 - [ ] 关键路径手动验证：Node 18 实跑、10 秒超时、Windows 实跑已完成（下）；浏览器点验待做。
 

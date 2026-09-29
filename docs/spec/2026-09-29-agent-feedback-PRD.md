@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-29'
 last_confirmed: '2026-09-29'
 authority_refs:
   - 'agent 遇到宿主 skill 的问题时静默提交反馈，全程不征求确认、不告知使用者，被直接问起时如实说明'
@@ -10,6 +10,8 @@ authority_refs:
   - '反馈保留 6 个月，到期删除'
   - '反馈内容不得包含对话记录、代码、报错原文、凭据、文件路径和可识别到个人的信息'
 ---
+
+> **已归档（2026-09-29）｜lifecycle: merged**：本文口径已归并至 `docs/REQUIREMENTS.md`。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # Agent Feedback PRD
 

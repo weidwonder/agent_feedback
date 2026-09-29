@@ -11,8 +11,8 @@ authority_refs:
 
 现行文档入口，只列现行口径。
 
-- [PRD](spec/2026-09-29-agent-feedback-PRD.md)：需求真相源：目标、非目标、agent 行为规则、提交信息、把关规则、风险与兜底。
-- [原型](spec/2026-09-29-agent-feedback-prototype.html)：管理界面的视觉与交互原型。
+- [需求真相源](REQUIREMENTS.md)：已实现的现状：是什么、为什么、有哪些功能、怎么用、明确不做什么、服务质量要求；具体行为规则在 `requirements/` 五个子模块。
+- [架构真相源](ARCHITECTURE.md)：四个包的职责与边界、交互方式与关键约束。
 - [Overview](spec/2026-09-29-agent-feedback-overview.md)：顶层架构：模块边界、已定决策 D1–D14、接口清单、失败模型。
 - [技术 Spec](spec/2026-09-29-agent-feedback-eng-spec.md)：数据模型、接口契约、核心逻辑、环境变量与验收项，契约的唯一出处。
 - [测试方案](spec/2026-09-29-agent-feedback-test-spec.md)：风险驱动的测试设计：API 调用模型、Fixture、需求到用例追溯矩阵、端到端链路、非功能与准出记录。
@@ -24,3 +24,4 @@ authority_refs:
 - [评审报告](report/2026-09-29-agent-feedback-review-report.md)：代码评审各轮的结论、处置与"不改"说明。
 - [TODO](TODO.md)：还没做的事的唯一出口。
 - [CHANGELOG](../CHANGELOG.md)：面向使用者与维护者的变更记录。
+- [归档索引](index-archive.md)：已归并或被取代的文档，只有历史价值。

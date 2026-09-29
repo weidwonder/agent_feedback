@@ -11,7 +11,7 @@ authority_refs:
 # Agent Feedback_00_Overview_顶层架构
 
 > 本文按 RFC 2119 解释 MUST / MUST NOT / SHOULD / MAY。
-> 需求真相源：`docs/spec/2026-09-29-agent-feedback-PRD.md`（下称 PRD）与 `docs/spec/2026-09-29-agent-feedback-prototype.html`（下称原型）。本文只圈模块与契约，不展开实现。
+> 需求真相源：`docs/REQUIREMENTS.md`。本文的设计输入为已归并归档的 `docs/spec/2026-09-29-agent-feedback-PRD.md`（下称 PRD）与 `docs/spec/2026-09-29-agent-feedback-prototype.html`（下称原型）。本文只圈模块与契约，不展开实现。
 
 ## 0. 用户确认摘要（业务语言）
 

@@ -28,7 +28,8 @@
 |---|---|---|---|---|---|---|
 | 1 | capability-mapping | 提交收录 | packages/shared/src/validate.ts | blocking | 1 | |
 | 2 | capability-mapping | 查询通道 | packages/server/src/routes/feedback-api.ts | scored | 1 | |
-| 3 | requirement-reachable | docs/spec/2026-09-29-agent-feedback-PRD.md | ≤2 跳 | scored | 1 | |
+| 3 | requirement-reachable | docs/REQUIREMENTS.md | ≤2 跳 | scored | 1 | |
+| 5 | architecture-reachable | docs/ARCHITECTURE.md | ≤2 跳 | scored | 1 | |
 | 4 | rationale-traceable | docs/index.md | 全部非空 | scored | 1 | |
 
 ## 基线（棘轮）
