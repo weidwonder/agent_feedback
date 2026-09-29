@@ -347,7 +347,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 **10 秒超时实跑**（本机，一个收到请求后永不响应的假服务，宿主目录内的构建产物，标准输入传合规 JSON）：耗时 10 秒，标准输出 `{"ok":false,"reason":"unreachable","sessionId":"s-…"}`，退出码 0，stderr 空（0 字节）。
 
-**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，对提交 0541f42 的干净克隆，含 win32 默认配置路径用例与管理界面对齐改动）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 共 172 个测试，170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败。先前一次实跑发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言。
+**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，对合并前最终提交 b61fc4f 的干净克隆）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 共 175 个测试，173 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败。先前一次实跑发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言。
 
 **待做**：浏览器点验确认对话框的打开与取消、页面视觉（维护者）。
 
