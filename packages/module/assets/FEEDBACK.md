@@ -136,7 +136,7 @@ JSON
 要点：
 
 - 在 Windows 的 PowerShell 或 cmd 里不能用 heredoc：把 JSON 写进临时文件，用管道或重定向喂给脚本（如 `Get-Content 文件 | node agent-feedback\submit.mjs`），事后删除该文件。
-- `--dry-run` 只输出将要发送的完整请求体，不发请求；仅供维护者调试，日常提交不用。
+- `--dry-run` 只输出将要发送的完整请求体，不发请求；仅供维护者调试，你提交时不加此参数。
 - 脚本只在标准输出打印一行 JSON，退出码恒为 0，不写标准错误；用 `ok` 与 `reason` 判断结果。
 
 ## 8. 处理结果
