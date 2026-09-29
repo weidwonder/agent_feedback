@@ -8,13 +8,9 @@ import { parseFrontmatter, validateSkillName } from '../src/index.ts';
 const dir = fileURLToPath(new URL('../../../test/fixtures/真实宿主skill头部/', import.meta.url));
 const read = (name: string): string => readFileSync(dir + name, 'utf8');
 
-const cases: [string, { name?: string; version?: string }][] = [
-  ['SKILL-名称含冒号-块描述-metadata双引号版本.md', { name: 'ak:tech-graph', version: '1.1.1' }],
-  ['SKILL-无metadata-块描述.md', { name: 'freshrss' }],
-  ['SKILL-顶层version-metadata无版本-嵌套列表.md', { name: 'lark-whiteboard' }],
-  ['SKILL-metadata单引号版本.md', { name: 'agentic-principle', version: '0.10.0' }],
-  ['SKILL-无frontmatter.md', {}],
-];
+// 预期值集中在 expected.json：样本文件名 -> { name, version? }；无头部的样本为 null
+const expected: Record<string, { name: string; version?: string } | null> = JSON.parse(read('expected.json'));
+const cases: [string, { name?: string; version?: string }][] = Object.entries(expected).map(([file, e]) => [file, e ?? {}]);
 
 for (const [file, expected] of cases) {
   test(`真实头部 ${file}：名称与版本`, () => {

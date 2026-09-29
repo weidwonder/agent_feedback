@@ -328,13 +328,10 @@ test('标准输入超过 256 KiB：输出 bad_input，退出码 0，stderr 为�
 
 // 真实宿主头部样本（test/fixtures/真实宿主skill头部/）：脚本据此补齐 skill.name 与 skill.version。
 const realDir = join(repoRoot, 'test', 'fixtures', '真实宿主skill头部');
-const realCases: [string, { name: string; version?: string } | null][] = [
-  ['SKILL-名称含冒号-块描述-metadata双引号版本.md', { name: 'ak:tech-graph', version: '1.1.1' }],
-  ['SKILL-无metadata-块描述.md', { name: 'freshrss' }],
-  ['SKILL-顶层version-metadata无版本-嵌套列表.md', { name: 'lark-whiteboard' }],
-  ['SKILL-metadata单引号版本.md', { name: 'agentic-principle', version: '0.10.0' }],
-  ['SKILL-无frontmatter.md', null],
-];
+// 预期值集中在 expected.json：样本文件名 -> { name, version? }；无头部的样本为 null
+const realCases = Object.entries(
+  JSON.parse(readFileSync(join(realDir, 'expected.json'), 'utf8')) as Record<string, { name: string; version?: string } | null>,
+);
 for (const [file, expected] of realCases) {
   test(`真实宿主头部 ${file}：--dry-run 的 skill 字段`, async () => {
     const host = makeHost({ skillMd: readFileSync(join(realDir, file), 'utf8') });
