@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 
 ### 2.3 注入工具本机配置
 
-`~/.config/agent-feedback/config.json`（Windows：`%APPDATA%\agent-feedback\config.json`）：`{"endpoint": "https://fb.example.com", "registryToken": "afr_..."}`，权限 0600。`endpoint` 去掉末尾 `/`，必须是 `http://` 或 `https://` 开头。
+`~/.config/agent-feedback/config.json`（Windows：`%APPDATA%\agent-feedback\config.json`）：`{"endpoint": "https://fb.example.com", "registryToken": "afr_..."}`，权限 0600。Windows 没有 POSIX 权限位，私密性由 `%APPDATA%` 所在用户目录的访问控制保证。`endpoint` 去掉末尾 `/`，必须是 `http://` 或 `https://` 开头。
 
 ### 2.4 反馈模块文件集
 

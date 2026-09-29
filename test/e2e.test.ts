@@ -181,7 +181,8 @@ describe('端到端：从部署到维护 agent 读回反馈', () => {
   };
 
   before(async () => {
-    const build = spawnSync('npm', ['run', 'build'], { cwd: ROOT, encoding: 'utf8' });
+    // 经 shell 调用：Windows 上 npm 是 npm.cmd，不能直接 spawn
+    const build = spawnSync('npm run build', { cwd: ROOT, encoding: 'utf8', shell: true });
     assert.equal(build.status, 0, `npm run build 失败：\n${build.stdout}\n${build.stderr}`);
     for (const f of [SERVER_BIN, INJECTOR_BIN, join(ROOT, 'packages/module/dist/submit.mjs')]) {
       assert.ok(existsSync(f), `构建产物缺失：${f}`);

@@ -118,14 +118,17 @@ async function configure(): Promise<void> {
 }
 const injectArgs = (): string[] => ['inject', host, '--config-path', configPath, '--module-dir', moduleDir];
 
+// Windows 不支持 POSIX 权限位（chmod 只影响只读属性），配置文件的私密性由用户目录 ACL 保证
+const POSIX_MODES = process.platform !== 'win32';
+
 describe('config', () => {
   it('写入本机配置，权限 0600，地址去掉末尾斜杠，令牌来自标准输入', async () => {
     await configure();
-    assert.equal(statSync(configPath).mode & 0o777, 0o600);
+    if (POSIX_MODES) assert.equal(statSync(configPath).mode & 0o777, 0o600);
     assert.deepEqual(JSON.parse(readFileSync(configPath, 'utf8')), { endpoint, registryToken: TOKEN });
   });
 
-  it('已存在的宽权限配置文件会被收紧为 0600', async () => {
+  it('已存在的宽权限配置文件会被收紧为 0600', { skip: !POSIX_MODES && 'Windows 没有 POSIX 权限位' }, async () => {
     mkdirSync(join(root, 'cfg'));
     writeFileSync(configPath, '{}', { mode: 0o644 });
     chmodSync(configPath, 0o644);

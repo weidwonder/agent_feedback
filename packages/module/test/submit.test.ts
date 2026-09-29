@@ -1,11 +1,12 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildSync } from 'esbuild';
 import { nodeTooOld } from '../src/node-version.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -24,16 +25,16 @@ let respond: (res: http.ServerResponse) => void = (res) => {
 const tmpDirs: string[] = [];
 
 before(async () => {
-  const r = spawnSync(
-    join(repoRoot, 'node_modules', '.bin', 'esbuild'),
-    [
-      join(moduleRoot, 'src', 'submit.ts'),
-      '--bundle', '--platform=node', '--format=esm', '--target=node20',
-      `--outfile=${bundle}`,
-    ],
-    { encoding: 'utf8' },
-  );
-  assert.equal(r.status, 0, r.stderr);
+  // 用 esbuild 的 JS 接口构建：`node_modules/.bin/esbuild` 在 Windows 上要经 .cmd 包装才能执行
+  buildSync({
+    entryPoints: [join(moduleRoot, 'src', 'submit.ts')],
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node20',
+    outfile: bundle,
+    logLevel: 'silent',
+  });
   server = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on('data', (c) => chunks.push(c));
