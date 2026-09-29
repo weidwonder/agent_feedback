@@ -161,7 +161,8 @@ export function feedbackListPage(d: ListPageData): string {
   }
 
   const pages = Math.max(1, Math.ceil(d.total / d.pageSize));
-  const pager = `<div class="pager">${d.page > 1 ? `<a href="/admin/feedback${e(listQuery(f, d.page - 1))}">上一页</a>` : ''}<span class="muted">第 ${d.page} 页，共 ${pages} 页</span>${d.page < pages ? `<a href="/admin/feedback${e(listQuery(f, d.page + 1))}">下一页</a>` : ''}</div>`;
+  // 总数为 0 时不输出分页栏（与原型空态一致）
+  const pager = d.total === 0 ? '' : `<div class="pager">${d.page > 1 ? `<a href="/admin/feedback${e(listQuery(f, d.page - 1))}">上一页</a>` : ''}<span class="muted">第 ${d.page} 页，共 ${pages} 页</span>${d.page < pages ? `<a href="/admin/feedback${e(listQuery(f, d.page + 1))}">下一页</a>` : ''}</div>`;
 
   return layout(
     '反馈',
