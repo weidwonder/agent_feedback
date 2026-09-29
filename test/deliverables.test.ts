@@ -29,8 +29,8 @@ describe('部署文件（AC-019）', () => {
     assert.equal(cfg.globalDailyLimit, 500);
     assert.equal(cfg.cookieSecure, true);
     assert.equal(cfg.trustProxy, true, '示例前置反向代理，须开 TRUST_PROXY');
-    // 单元里写死的数据目录路径与可写目录一致
-    assert.match(unit, new RegExp(`ReadWritePaths=${cfg.dataDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    // 单元里写死的数据目录路径与可写目录一致；比对单元原文而非 cfg.dataDir（后者经 path.resolve，在 Windows 上会带盘符）
+    assert.ok(unit.split('\n').includes(`ReadWritePaths=${env.DATA_DIR}`), 'ReadWritePaths 须等于 DATA_DIR');
   });
 
   it('两份代理示例都转发到单元里的监听地址，并带上来源地址头', () => {

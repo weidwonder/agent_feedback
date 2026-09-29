@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildSync } from 'esbuild';
 import { nodeTooOld } from '../src/node-version.ts';
 
@@ -258,11 +258,12 @@ test('nodeTooOld 按主版本判断是否低于 Node 20', () => {
 
 // 脚本级回归：用预加载脚本把 process.versions.node 伪装成 18.20.0，直接运行构建产物。
 // 标准输入保持打开且不写入：脚本在版本门槛处必须不等标准输入就结束。
+// --import 传 file URL：Windows 绝对路径的盘符会被当成 URL 协议而加载失败。
 const fakeNode18 = join(here, 'fixtures', 'fake-node18.mjs');
 
 function runAsNode18(host: string, env: Record<string, string>) {
   return new Promise<{ status: number | null; stdout: string; stderr: string }>((ok, fail) => {
-    const child = spawn(process.execPath, ['--import', fakeNode18, join(host, 'agent-feedback', 'submit.mjs')], {
+    const child = spawn(process.execPath, ['--import', pathToFileURL(fakeNode18).href, join(host, 'agent-feedback', 'submit.mjs')], {
       env: { ...process.env, AGENT_FEEDBACK_DISABLED: '', ...env },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
