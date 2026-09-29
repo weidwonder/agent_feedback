@@ -15,6 +15,7 @@ authority_refs:
   - 定时任务：到期清理、计数保留与每日备份口径（§4.2）
   - 日志事件名（§7）
   - 服务端与注入工具命令行（§3 CLI 契约）
+  - 提交脚本 submit.mjs 的输出 reason 取值（§4.3）
 ---
 
 # agent-feedback_技术 Spec — 反馈收集服务、反馈模块与注入工具
@@ -156,7 +157,7 @@ flowchart TD
 
 **校验函数**：`validateSubmission(input: unknown): {ok: true, value: Submission} | {ok: false, code: 'invalid_field' | 'too_many_items', field: string, message: string}`。message 用中文，格式："<字段路径> <问题>，<限制>"，例：`items[0].title 超长，最多 30 字符（当前 34）`。遇到第一个错误即返回。
 
-**skill 名校验**：`validateSkillName(raw: unknown): {ok: true, value: string} | {ok: false, message: string}`，trim 后 1–100 个字符（按码点计）；调用方：登记接口、检查接口 `GET /v1/registry/check`、管理界面改名、注入工具（写文件与登记前先校验宿主名称，不合法直接失败、不写文件）；共用这一处，各自不得另写。检查接口的名称校验失败见 §3。
+**skill 名校验**：`validateSkillName(raw: unknown): {ok: true, value: string} | {ok: false, message: string}`，trim 后 1–100 个字符（按码点计）；调用方：登记接口、检查接口 `GET /v1/registry/check`、管理界面改名、注入工具（写文件与登记前先校验宿主名称，不合法直接失败、不写文件）；共用这一处，各自不得另写。两个登记接口的名称校验失败见 §3。
 
 ### 2.2 SQLite 表（`packages/server`）
 
@@ -219,7 +220,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 |---|---|---|---|
 | `POST /v1/submissions` | §2.1 请求体 | 201 `{"submissionId": n, "feedbackIds": ["FB-0001", ...]}` | submit.mjs |
 | `GET /v1/registry/check?name=` | 登记令牌 | 200 `{"state":"registered","enabled":bool}` \| `{"state":"old_name","currentName":"..."}` \| `{"state":"unknown"}`；名称缺失或不合法 400 `invalid_field`（field=`name`） | 注入工具 |
-| `POST /v1/registry` | 登记令牌；`{"name"}` | 200 `{"name","enabled","created":bool}`；旧名 409 `old_name` | 注入工具 |
+| `POST /v1/registry` | 登记令牌；`{"name"}` | 200 `{"name","enabled","created":bool}`；旧名 409 `old_name`；名称缺失或不合法 400 `invalid_field`（field=`name`） | 注入工具 |
 | `GET /v1/feedback` | 查询令牌；query：`skill`(必填，现名)、`type`、`impact`、`status`、`resolved`(`true`/`false`)、`from`/`to`(`YYYY-MM-DD`，北京时间，含两端)、`moduleVersion`、`agentName`、`harnessName`、`limit`(默认 20，1–50)、`offset`(默认 0) | 200 `{"notice","total","items":[FeedbackView]}`，按收录时间倒序 | 维护 agent |
 | `GET /v1/feedback/:id` | 查询令牌；id 可为数字或 `FB-0012` | 200 `{"notice","item":FeedbackView,"siblings":["FB-...", ...]}` | 维护 agent |
 | `PATCH /v1/feedback/:id` | 查询令牌；`{"status"}` | 200 `{"notice","item":FeedbackView}` | 维护 agent |
@@ -274,7 +275,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 
 ### 4.2 定时任务与启动
 
-- 启动：建表（幂等）→ 应用删除编号日志（逐 id `DELETE FROM feedback WHERE id=?`，再删无问题的 submissions）→ 执行一次到期清理 → 监听。
+- 启动：建表（幂等）→ 应用删除编号日志（逐 id `DELETE FROM feedback WHERE id=?`，再删无问题的 submissions）→ 执行一次到期清理与过期备份清理（见下）→ 监听。
 - 每小时：应用删除编号日志 + 到期清理：删除 `received_at` 早于"当前北京时间减 6 个日历月"的 submissions 及其 feedback；删除 30 天前的 counters、rejections；删除过期会话；清理过期备份（见下）。
 - 每天北京时间 03:00（进程内每分钟检查一次是否已跨过当天 03:00 且当天未备份）：`VACUUM INTO '<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite'`，备份失败只记日志（`backup_failed`），不影响服务；当天不再重试，次日 03:00 之后再试。失败记忆只在进程内，服务重启后当天会再试一次。
 - 备份清理在启动与每小时维护中执行，不在每分钟检查里做，与备份成败无关：删除文件名日期不晚于 7 天前的备份，只留当天与前 6 天共 7 份；同时删除日期早于今天的残留临时文件 `feedback-YYYYMMDD.sqlite.tmp`。清理失败只记日志（`backup_prune_failed`，error），下一次维护照常重试。
