@@ -1,0 +1,10 @@
+{
+  "name": "@agent-feedback/module",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@agent-feedback/shared": "*" },
+  "scripts": {
+    "build": "esbuild src/submit.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/submit.mjs"
+  }
+}

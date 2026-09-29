@@ -1,0 +1,2 @@
+# 文本文件一律以 LF 检出：部署文件（systemd 单元等）与注入到宿主的模块资产不随检出平台变成 CRLF
+* text=auto eol=lf

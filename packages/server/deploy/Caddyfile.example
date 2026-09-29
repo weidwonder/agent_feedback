@@ -1,0 +1,9 @@
+# 把 fb.example.com 换成实际域名；Caddy 自动申请证书。
+# Caddy 会把真实来源地址追加为 X-Forwarded-For 的最后一段，服务端配 TRUST_PROXY=1 即可按来源限额。
+fb.example.com {
+	# 与服务端 64 KiB 请求体上限配合，提前在代理层截断超大请求
+	request_body {
+		max_size 128KB
+	}
+	reverse_proxy 127.0.0.1:8787
+}

@@ -1,0 +1,17 @@
+{
+  "SKILL-名称含冒号-块描述-metadata双引号版本.md": {
+    "name": "ak:tech-graph",
+    "version": "1.1.1"
+  },
+  "SKILL-无metadata-块描述.md": {
+    "name": "freshrss"
+  },
+  "SKILL-顶层version-metadata无版本-嵌套列表.md": {
+    "name": "lark-whiteboard"
+  },
+  "SKILL-metadata单引号版本.md": {
+    "name": "agentic-principle",
+    "version": "0.10.0"
+  },
+  "SKILL-无frontmatter.md": null
+}
