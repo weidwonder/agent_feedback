@@ -91,7 +91,7 @@ authority_refs:
 | API-ADM-SET | `GET /admin/settings`、`POST /admin/tokens`、`POST /admin/tokens/:id/revoke`、`POST /admin/password` | Cookie；POST 同源 | 表单：`kind`、`name`；`current`、`next`、`confirm` | — | 令牌成功页一次性展示完整令牌 | 密码不足 12 字符、两次不一致、当前密码错误均拒绝 | 令牌只存 SHA-256；改密码清空全部会话 | 撤销幂等 | — |
 | API-SUBMIT | `node <宿主>/agent-feedback/submit.mjs [--dry-run]` | 环境变量 `AGENT_FEEDBACK_DISABLED=1` 关闭 | 标准输入：`{session, items}` JSON（≤ 256 KiB） | — | 标准输出恰一行 JSON：`{ok:true,submissionId,feedbackIds,sessionId}` / `{ok:true,dryRun:true,body}` / `{ok:false,reason}` | `reason` ∈ `disabled`、`node_too_old`、`bad_input`、`not_configured`、`host_unreadable`、`invalid`、`unreachable`、`rejected`、`internal` | 只向服务端发一次 POST，不落本地文件 | 无状态，不重试 | 无 |
 | API-CLI-SERVER | `node packages/server/dist/server.mjs serve` / `set-admin <用户名>` | 环境变量；`set-admin` 从标准输入读密码 | — | — | 退出码 0/1；配置非法时 stderr 含变量名 | — | `set-admin` 写 admin 并清空全部会话 | 重跑覆盖密码 | 无 |
-| API-CLI-INJ | `node packages/injector/dist/agent-feedback.mjs config --endpoint <url>` / `inject <目录>` | 登记令牌只从标准输入读 | 可选 `--config-path`、`--module-dir` | — | 退出码 0/1；stdout 摘要；失败原因打到 stderr | 见 spec §4.4 各 `fail` 分支 | 写模块目录、追加引导语、向服务登记；失败回滚 | 重复注入不重复追加引导语与登记 | `--config-path`、`--module-dir` 已列入 spec §3 CLI 契约（§10 项 3） |
+| API-CLI-INJ | `node packages/injector/dist/agent-feedback.mjs config --endpoint <url>` / `inject <目录>` | 登记令牌只从标准输入读 | 可选参数见 spec §3 CLI 契约 | — | 退出码 0/1；stdout 摘要；失败原因打到 stderr | 见 spec §4.4 各 `fail` 分支 | 写模块目录、追加引导语、向服务登记；失败回滚 | 重复注入不重复追加引导语与登记 | `--config-path`、`--module-dir` 已列入 spec §3 CLI 契约（§10 项 3） |
 
 ## 4. 测试数据构造方案（Fixture）
 
@@ -107,7 +107,7 @@ authority_refs:
 | FX-SEED | 到期清理、列表筛选、删除日志 | 指定 `received_at`、状态、模块版本、agent、运行环境的历史反馈 | submissions、feedback | 见各用例 | `helpers.ts#seedSubmission`（绕过 HTTP，时间可控） | FX-SERVER | 反馈内部编号 | 同上 |
 | FX-BACKUPDIR | 备份与清理 | 备份目录的各种形态 | `<DATA_DIR>/backups/` | 过期文件、边界文件、昨天与当天的 `.tmp`；目录被普通文件占用；同名目录占位使删除失败 | 用例内 `writeFileSync`/`mkdirSync` | 空 `backups/` | — | 随临时目录 |
 | FX-HOST | 提交脚本 | 宿主 skill 目录 | 宿主 `SKILL.md`、`agent-feedback/config.json`、`submit.mjs` | 名称 `demo-skill`、`metadata.version: "2.3.1"`；`endpoint` 指向本地假服务 | `packages/module/test/submit.test.ts#makeHost`（复制构建产物） | 构建产物已生成 | 假服务收到的请求 | 用例结束删临时目录 |
-| FX-REALHEAD | 版本读取 | 真实宿主头部 5 份 | `SKILL.md` 头部 | 名称含冒号、块描述、双引号/单引号版本、顶层 version、无 frontmatter | `test/fixtures/真实宿主skill头部/*.md`（预期值见其 README） | — | — | 只读 |
+| FX-REALHEAD | 版本读取 | 真实宿主头部 5 份 | `SKILL.md` 头部 | 名称含冒号、块描述、双引号/单引号版本、顶层 version、无 frontmatter | `test/fixtures/真实宿主skill头部/*.md`（预期值见同目录 `expected.json`） | — | — | 只读 |
 | FX-NODE18 | 提交脚本旧版 Node 门槛 | 进程认为自己是 Node 18 | 预加载脚本 | `process.versions.node = '18.20.0'` | `packages/module/test/fixtures/fake-node18.mjs`，`node --import <预加载> submit.mjs` | — | — | — |
 | FX-E2E | L1 | 真实构建产物：服务进程、临时数据目录、临时宿主目录、临时本机配置文件 | 全部 | 端口取空闲端口；管理员 `e2e-admin`；skill `e2e-demo`，`metadata.version: 2.3.0`；三条问题（缺陷/使用摩擦/缺能力，`occurrences` 3/1/2，第二条 `resolved=true` 带 `suggestedFix`） | `test/e2e.test.ts`（先 `npm run build`） | 无 | 令牌、cookie、反馈编号、会话编号、快照路径 | `after` 停进程、删临时目录 |
 
@@ -285,7 +285,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 |---|---|---|---|---|
 | 分支 | L2 | FX-E2E | 未登记 skill 提交 → 脚本输出 `rejected` → 服务端只计数（步 6b、6c、8 的拒收行）；停用 skill 的提交与重新注入保持停用（注入用例） | E2E:6b、6c、8；SUB；INJ:停用的 skill |
 | 异常 | L3 | FX-SERVER、FX-HOST、FX-BACKUPDIR | 服务不可达 → 脚本输出 `unreachable`；注入写文件后登记失败 → 宿主逐字节还原；备份失败或改名失败 → 无残留 `.tmp`、当天不重试；清理失败 → 记 `backup_prune_failed` 不抛出、其余文件照常清理；从旧备份恢复 → 步 11；应用自己生成的每日备份 → 删除 → 用该备份恢复 → 重放，逐环断言（备份含两条、删除日志只记被删编号且不在备份目录、恢复后暂时复现、重放删 1 行、另一条保留） | MOD:服务不可达；INJ:登记失败；JOB:备份失败…、清理逐个文件容错、runMaintenance 遇到备份清理失败；JOB:链路：每日备份生成的文件…；E2E:11 |
-| 并发 | L4 | FX-SERVER | 10 个来源各异的提交并发（全站上限 3）；同一来源 9 个并发（上限 5）；断言状态码分布、库行数、计数、拒收统计守恒 | CON:全部 |
+| 并发 | L4 | FX-SERVER | 10 个来源各异的提交同时到达（全站上限 3）；同一来源 9 个同时到达（上限 5）；断言状态码分布、库行数、计数、拒收统计守恒。口径：同时到达的请求下限额守恒（单事件循环 + 同步 SQLite，把关到落库之间无异步间隙；不证明并发竞争安全） | CON:全部 |
 | 异步一致性 | L5 | FX-SERVER（`mock.timers`、注入 `now()`） | 推进 59 秒无备份、1 秒后有备份；满 1 小时到期清理；抛错后下个周期照常；停止后不触发；收录后 60 秒内可查（步 7） | JOB:每小时跑维护、每分钟检查备份；E2E:7 |
 
 ## 9. 非功能测试
@@ -311,12 +311,12 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 |---|---|---|---|---|---|
 | 1. 反馈列表"近 7 天""近 30 天" | API-ADM-FB | FX-SEED | ADMF:时间范围、ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 已澄清，见 spec §4.5；依据 `packages/server/src/admin/routes.ts#toFilters`；边界用例取北京 7 / 30 天前 23:59:59.999 与 6 / 29 天前 00:00:00 | 契约疑问 |
 | 2. 原型与实现的展示差异 | API-ADM-* | — | ADM:详情操作系统显示中文名…、ADM:详情展示会话信息…、ADM:列表分页 | 已澄清：权威顺序"PRD ≥ 原型 > spec > 实现"。操作系统显示名、详情头部"已解决 / 未解决"标记、按钮"保存状态"、分页"第 N 页，共 M 页"按原型对齐并写入 spec §2.1 / §4.5；登录错误文案 PRD 为"账号或密码不正确"，PRD 优先，保持不改。版式差异不算缺陷（原型标注"临时视觉假设"） | 契约疑问 |
-| 3. CLI 契约 | API-CLI-INJ | — | E2E:4、5 | 已澄清：`--config-path`（覆盖本机配置文件位置，`config` 与 `inject` 均接受）、`--module-dir`（仅 `inject`，反馈模块包目录，缺省为本仓 `packages/module`）依据 `packages/injector/src/cli.ts#main`，已补入 spec §3 CLI 契约表 | 契约疑问 |
+| 3. CLI 契约 | API-CLI-INJ | — | E2E:4、5 | 已澄清，见 spec §3 CLI 契约；依据 `packages/injector/src/cli.ts#main` | 契约疑问 |
 | 4. 同一会话编号重复提交 | API-SUB | — | 无 | 已澄清，见 spec §2.1；依据当前实现与 PRD（会话内次数上限属 agent 行为规则）。不为"重复落库"另写固化用例 | 契约疑问 |
 | 5. 改名确认的"取消" | API-ADM-SKILL | — | 无 | 待确认：取消是对话框里的 `href="#"` 锚点，纯浏览器行为，无服务端契约；需人工在浏览器点验"取消则名称不变" | 集成疑问 |
-| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清，见 spec §4.3；依据 `packages/shared/src/frontmatter.ts#parseFrontmatter`。真实样本里没有更深层嵌套写法，`packages/shared/test/` 不在本轮改动范围，未增专门用例 | 契约疑问 |
+| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清，见 spec §4.3；依据 `packages/shared/src/frontmatter.ts#parseFrontmatter`。真实样本里没有更深层嵌套写法，未增专门用例 | 契约疑问 |
 | 7. 提交脚本的兜底 `internal` | API-SUBMIT | — | 无 | 待确认：spec §4.3 要求全程 try/catch 兜底为 `{ok:false,reason:"internal"}`，没有可触发的稳定入口（不构造被测代码内部异常），未测 | 实现风险 |
-| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已澄清（2026-09-29 实跑，见 §11）：Windows 主机（Node v22.22.3）对提交 0541f42 的干净克隆，172 个测试 170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败；配置文件私密性在 Windows 上依赖用户目录访问控制（spec 已写明）；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言 | 集成疑问 |
+| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已实跑通过，见 §11 | 集成疑问 |
 | 9. 宿主 agent 行为规则 | — | — | 无 | 待确认：PRD 的静默、禁写、会话上限、格式重试、如实回答等只能靠真实会话评测验证；`docs/report/上线评测场景.md` 已备场景，尚未执行 | 实现风险 |
 | 10. `deploy.md` 与配置表 | DEL | — | DEL:部署文件 | `docs/deploy.md` 明确不复述变量表（以 spec §6 为唯一出处），AC-019 的"一致"由 systemd 单元与配置表比对承担；`deploy.md` 本身未逐项比对 | 契约疑问 |
 
@@ -347,7 +347,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 **10 秒超时实跑**（本机，一个收到请求后永不响应的假服务，宿主目录内的构建产物，标准输入传合规 JSON）：耗时 10 秒，标准输出 `{"ok":false,"reason":"unreachable","sessionId":"s-…"}`，退出码 0，stderr 空（0 字节）。
 
-**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，对提交 0541f42 的干净克隆，含 win32 默认配置路径用例与管理界面对齐改动）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 共 172 个测试，170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败。先前一次实跑发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明。
+**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，对提交 0541f42 的干净克隆，含 win32 默认配置路径用例与管理界面对齐改动）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 共 172 个测试，170 通过、2 跳过（配置文件 0600 权限用例、非 win32 默认路径用例）、0 失败。先前一次实跑发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言。
 
 **待做**：浏览器点验确认对话框的打开与取消、页面视觉（维护者）。
 
@@ -375,6 +375,10 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 近 7 天范围的偏移由 6 天改为 7 天（起点多算一天） | 变红 |
 | ADM:详情操作系统显示中文名 | 把 `LABELS.os` 的 `win32` 显示名改成 `Win` | 变红 |
 | ADM:列表分页 / 只有一页 | 分页文案改回 `第 N / M 页` | 两条各自变红 |
+| ADM:空态无分页栏 | 空态照样输出分页栏 | 空态用例与页码越界用例中的空态断言变红 |
+| ADM:页码越界收回到最后一页 | 去掉越界收回的判断 | 变红 |
+| SEC:拒收的提交内容不落盘（递归扫描） | 未登记 skill 的拒收内容写进 `DATA_DIR` 的子目录 | 变红（递归扫描才能发现子目录里的落盘） |
+| SHR / MOD:真实头部样本登记与目录一致 | 把 `expected.json` 清空为 `{}` | 两个包内的登记一致性用例各自变红（其余逐样本用例随之消失，不再哑绿） |
 | ADM:详情展示会话信息（已解决标记、保存状态） | 去掉详情头部的已解决 / 未解决徽标；按钮文案改回`保存` | 各自变红 |
 | INJ:本机配置默认路径 | 非 win32 分支的 `.config` 改成 `.cfg` | 变红（win32 用例在 Windows 主机上执行，Mac 上跳过） |
 | ADMD:详情版式 | 交换问题卡与会话信息卡的顺序 | 变红 |
