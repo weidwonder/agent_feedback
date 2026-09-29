@@ -215,8 +215,15 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
     guarded((_req, res, _params, url) => {
       const form = parseListForm(url);
       const pageRaw = url.searchParams.get('page') ?? '';
-      const page = /^\d{1,6}$/.test(pageRaw) && Number(pageRaw) >= 1 ? Number(pageRaw) : 1;
-      const { total, items } = listFeedback(db, toFilters(form, ctx.now(), page));
+      let page = /^\d{1,6}$/.test(pageRaw) && Number(pageRaw) >= 1 ? Number(pageRaw) : 1;
+      const now = ctx.now();
+      let { total, items } = listFeedback(db, toFilters(form, now, page));
+      // 页码越界（总数 > 0 却落在最后一页之后）时收回到最后一页
+      const lastPage = Math.ceil(total / PAGE_SIZE);
+      if (total > 0 && page > lastPage) {
+        page = lastPage;
+        ({ total, items } = listFeedback(db, toFilters(form, now, page)));
+      }
       const skillNames = queryAll<{ name: string }>(db, 'SELECT name FROM skills ORDER BY name').map((r) => r.name);
       const deleted = url.searchParams.get('deleted');
       const deletedId = deleted ? parseFeedbackId(deleted) : null;
