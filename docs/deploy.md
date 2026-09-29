@@ -51,7 +51,7 @@ authority_refs:
    systemctl daemon-reload && systemctl enable --now agent-feedback
    journalctl -u agent-feedback -f     # 看到 event=startup 即已监听
    ```
-6. 配反向代理与 HTTPS：示例见 `packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`。代理必须把真实来源地址追加到 `X-Forwarded-For`，并让服务端 `TRUST_PROXY=1`。nginx 示例已关闭访问日志：代理日志会长期留存提交方的网络地址，而服务端只按天计数、30 天后删除；改用自己的日志配置时留意这一点。
+6. 配反向代理与 HTTPS：示例见 `packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`。代理必须把真实来源地址追加到 `X-Forwarded-For`，并让服务端 `TRUST_PROXY=1`。nginx 示例已关闭访问日志：代理日志会长期留存提交方的网络地址，而服务端对网络地址只做限额计数、有明确保留期（见 spec §4.2）；改用自己的日志配置时留意这一点。
 7. 验证：`curl -s https://<域名>/healthz` 输出 `ok`；外部可用性探测服务指向这个地址。
 8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。把查询令牌交给维护 agent 时，同时把 `docs/query-api.md` 交给它：处理规则与用法口径在该文件里。
 
@@ -67,7 +67,8 @@ authority_refs:
 
 服务进程内自带，无需 cron。启动、每小时清理与每日备份（含保留份数、失败与重启后的重试口径）的定义见 spec §4.2。运维动作：
 
-- 日志出现关键字 `backup_failed`：检查磁盘空间与 `DATA_DIR` 权限；修复后无需手动干预，次日备份照常生成，或重启服务让当天再试一次。
+- 日志出现关键字 `backup_failed`：检查磁盘空间与 `DATA_DIR` 权限；修复后无需手动干预，次日备份照常生成，或重启服务让当天再试一次。连续出现 `backup_failed` 必须当天处理，否则约 7 天后备份目录里没有可用备份。
+- 日志出现关键字 `backup_prune_failed`：过期备份清理失败，检查备份目录权限与磁盘；不影响备份与服务，下一次每小时维护会自动重试。
 
 ## 日志
 
@@ -85,7 +86,7 @@ authority_refs:
 3. **不要删除 `deleted-ids.log`。** 服务启动时会按它重删备份里仍存在的已删反馈，并保证之后新收录的反馈不会复用已删编号。
 4. `systemctl start agent-feedback`，用 `journalctl` 确认 `event=deleted_log_applied`，再访问 `/healthz`。
 
-恢复会丢失该备份之后不到一天的数据。删除的反馈在备份里最多滞留 7 天（备份滚动删除），恢复时会被日志重删。
+恢复会丢失该备份之后不到一天的数据。删除的反馈在备份里的滞留期见 spec §4.2，恢复时会被日志重删。
 
 ## 升级
 

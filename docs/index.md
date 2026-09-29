@@ -19,6 +19,6 @@ authority_refs:
 - [部署与运维](deploy.md)：首次部署、数据目录、定时任务、日志、备份恢复、注入工具的构建与使用。
 - [查询通道使用说明](query-api.md)：维护 agent 读取反馈的鉴权、分页、不可信文本处理规则与改状态口径。
 - [上线评测场景](report/上线评测场景.md)：上线前评测 agent 触发率、误触发率、禁写信息与维护 agent 注入抗性的场景清单与判定口径。
-- [评审报告](report/2026-09-29-agent-feedback-review-report.md)：第 1 轮代码评审的结论、处置与"不改"说明。
+- [评审报告](report/2026-09-29-agent-feedback-review-report.md)：代码评审各轮的结论、处置与"不改"说明。
 - [TODO](TODO.md)：还没做的事的唯一出口。
 - [CHANGELOG](../CHANGELOG.md)：面向使用者与维护者的变更记录。

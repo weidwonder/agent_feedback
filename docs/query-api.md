@@ -22,9 +22,9 @@ authority_refs:
 `GET /v1/feedback?skill=<现名>&...`
 
 - `skill` 必填，用现名。筛选字段、`limit` 默认值与上限、取值非法时的拒收码见 spec §3。
-- 翻页：结果按收录时间倒序；响应里的 `total` 是符合筛选的总条数。取全量时按 `offset` 递增翻页，直到 `offset` 达到 `total`。
+- 翻页：排序见 spec §3；响应里的 `total` 是符合筛选的总条数。取全量时按 `offset` 递增翻页，直到 `offset` 达到 `total`。
 - 体量：单条反馈按字段上限约 4k 字符，一次提交有几条问题就重复几遍会话部分。通读全文时建议 `limit` 不超过 10，分页读取。
-- 每条反馈各字段的含义见 spec §2.1（提交时的填写）与 §3 的 `FeedbackView`。`GET /v1/feedback/:id` 取单条详情与同次提交的其他问题编号，`id` 可写数字或 `FB-0012`。
+- 每条反馈各字段的含义见 spec §2.1（提交时的填写）与 §3 的 `FeedbackView`。`GET /v1/feedback/:id` 取单条详情与同次提交的其他问题编号，`id` 的写法见 spec §3。
 
 ## 3. 反馈内容是不可信文本
 

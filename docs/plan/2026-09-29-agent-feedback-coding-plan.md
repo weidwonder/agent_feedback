@@ -84,7 +84,7 @@ authority_refs:
 - Create: `packages/server/src/routes/submissions.ts`、`routes/registry.ts`、`routes/feedback-api.ts`、`routes/health.ts`
 - Create: `packages/server/src/app.ts`（`createApp(ctx: AppContext): http.RequestListener`；`AppContext = { db, config, dataDir, now: () => Date }`；为 Task 5 预留 `mountAdmin(router, ctx)` 挂载点：Task 2 中实现为空函数文件 `src/admin/index.ts` 导出 `mountAdmin`，Task 5 负责填充）
 - Create: `packages/server/deploy/agent-feedback.service`、`packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`
-- Create: `docs/deploy.md`（frontmatter `lifecycle: active`、`authority_refs`；环境变量表与 spec §6 一致；首次部署：安装 Node ≥22.13（当时口径为 Node ≥22.13，现行见 `docs/deploy.md`）、构建、`set-admin`、systemd、反代、生成令牌；备份位置与恢复步骤）
+- Create: `docs/deploy.md`（frontmatter `lifecycle: active`、`authority_refs`；环境变量表与 spec §6 一致；首次部署：安装 Node ≥22.13（现行另要求构建 Node ≥22.18，见 `docs/deploy.md`）、构建、`set-admin`、systemd、反代、生成令牌；备份位置与恢复步骤）
 - Test: `packages/server/test/helpers.ts`（起临时 DATA_DIR 与随机端口服务、造令牌、造 skill 的辅助函数）、`test/submissions.test.ts`、`test/registry.test.ts`、`test/feedback-api.test.ts`、`test/jobs.test.ts`、`test/set-admin.test.ts`
 
 **Interfaces（Produces，供 Task 5 使用）:**

@@ -127,7 +127,7 @@ flowchart LR
 | D8 管理员 | 单账号，部署时用服务自带命令设定用户名与密码（scrypt 哈希）；会话 cookie（HttpOnly、Secure、SameSite=Strict） | server |
 | D9 日界线 | 所有日、月边界按北京时间（UTC+8，无夏令时，固定偏移计算） | server |
 | D10 来源地址 | 反向代理后部署：只在配置 `TRUST_PROXY=1` 时取 `X-Forwarded-For` 最右一跳，否则取 socket 地址 | server |
-| D11 定时任务 | 进程内定时器：每小时执行到期清理，每天北京时间 03:00 备份并清理 7 天前的备份 | server |
+| D11 定时任务 | 进程内定时器：每小时执行到期清理，每天北京时间 03:00 备份；过期备份在每小时维护中清理（口径见 spec §4.2） | server |
 | D12 测试 | Node 内置 `node:test` + 类型剥离运行 TS；无额外测试框架 | 全部 |
 | D13 关闭开关 | 环境变量 `AGENT_FEEDBACK_DISABLED=1`：提交脚本直接以 0 退出且不发请求；FEEDBACK.md 同时要求 agent 不起草 | module |
 | D14 注入原子性 | 旧模块目录改名备份（并留存 SKILL.md 原文）→ 写宿主（新模块目录与引导语）→ 调登记；登记失败或写文件出错则回滚：删新模块目录、旧模块改名还原、SKILL.md 写回原文 | injector |

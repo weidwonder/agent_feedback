@@ -156,7 +156,7 @@ flowchart TD
 
 **校验函数**：`validateSubmission(input: unknown): {ok: true, value: Submission} | {ok: false, code: 'invalid_field' | 'too_many_items', field: string, message: string}`。message 用中文，格式："<字段路径> <问题>，<限制>"，例：`items[0].title 超长，最多 30 字符（当前 34）`。遇到第一个错误即返回。
 
-**skill 名校验**：`validateSkillName(raw: unknown): {ok: true, value: string} | {ok: false, message: string}`，trim 后 1–100 个字符（按码点计）；调用方：登记接口、检查接口 `GET /v1/registry/check`、管理界面改名、注入工具（写文件与登记前先校验宿主名称，不合法直接失败、不写文件）；共用这一处，各自不得另写。检查接口名称不合法回 400 `invalid_field`（field 为 `name`）。
+**skill 名校验**：`validateSkillName(raw: unknown): {ok: true, value: string} | {ok: false, message: string}`，trim 后 1–100 个字符（按码点计）；调用方：登记接口、检查接口 `GET /v1/registry/check`、管理界面改名、注入工具（写文件与登记前先校验宿主名称，不合法直接失败、不写文件）；共用这一处，各自不得另写。检查接口的名称校验失败见 §3。
 
 ### 2.2 SQLite 表（`packages/server`）
 
@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 | 接口 | 入参 | 出参 | 调用方 |
 |---|---|---|---|
 | `POST /v1/submissions` | §2.1 请求体 | 201 `{"submissionId": n, "feedbackIds": ["FB-0001", ...]}` | submit.mjs |
-| `GET /v1/registry/check?name=` | 登记令牌 | 200 `{"state":"registered","enabled":bool}` \| `{"state":"old_name","currentName":"..."}` \| `{"state":"unknown"}` | 注入工具 |
+| `GET /v1/registry/check?name=` | 登记令牌 | 200 `{"state":"registered","enabled":bool}` \| `{"state":"old_name","currentName":"..."}` \| `{"state":"unknown"}`；名称缺失或不合法 400 `invalid_field`（field=`name`） | 注入工具 |
 | `POST /v1/registry` | 登记令牌；`{"name"}` | 200 `{"name","enabled","created":bool}`；旧名 409 `old_name` | 注入工具 |
 | `GET /v1/feedback` | 查询令牌；query：`skill`(必填，现名)、`type`、`impact`、`status`、`resolved`(`true`/`false`)、`from`/`to`(`YYYY-MM-DD`，北京时间，含两端)、`moduleVersion`、`agentName`、`harnessName`、`limit`(默认 20，1–50)、`offset`(默认 0) | 200 `{"notice","total","items":[FeedbackView]}`，按收录时间倒序 | 维护 agent |
 | `GET /v1/feedback/:id` | 查询令牌；id 可为数字或 `FB-0012` | 200 `{"notice","item":FeedbackView,"siblings":["FB-...", ...]}` | 维护 agent |
@@ -275,9 +275,9 @@ CREATE TABLE IF NOT EXISTS rejections (
 ### 4.2 定时任务与启动
 
 - 启动：建表（幂等）→ 应用删除编号日志（逐 id `DELETE FROM feedback WHERE id=?`，再删无问题的 submissions）→ 执行一次到期清理 → 监听。
-- 每小时：应用删除编号日志 + 到期清理：删除 `received_at` 早于"当前北京时间减 6 个日历月"的 submissions 及其 feedback；删除 30 天前的 counters、rejections；删除过期会话。
+- 每小时：应用删除编号日志 + 到期清理：删除 `received_at` 早于"当前北京时间减 6 个日历月"的 submissions 及其 feedback；删除 30 天前的 counters、rejections；删除过期会话；清理过期备份（见下）。
 - 每天北京时间 03:00（进程内每分钟检查一次是否已跨过当天 03:00 且当天未备份）：`VACUUM INTO '<DATA_DIR>/backups/feedback-YYYYMMDD.sqlite'`，备份失败只记日志（`backup_failed`），不影响服务；当天不再重试，次日 03:00 之后再试。失败记忆只在进程内，服务重启后当天会再试一次。
-- 备份清理与备份成败脱钩：每次定时检查（含备份失败或当天已备份的检查）都删除文件名日期不晚于 7 天前的备份，只留当天与前 6 天共 7 份。
+- 备份清理在启动与每小时维护中执行，不在每分钟检查里做，与备份成败无关：删除文件名日期不晚于 7 天前的备份，只留当天与前 6 天共 7 份；同时删除日期早于今天的残留临时文件 `feedback-YYYYMMDD.sqlite.tmp`。清理失败只记日志（`backup_prune_failed`，error），下一次维护照常重试。
 - 删除单条反馈：先追加删除编号日志（`fs.appendFileSync` + fsync），再在事务内删 feedback 行，submission 无剩余问题时一并删除。
 
 ### 4.3 提交脚本（`packages/module/src/submit.ts` → `dist/submit.mjs`）
@@ -285,6 +285,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 ```
 main():
   if env.AGENT_FEEDBACK_DISABLED == "1": print {ok:false, reason:"disabled"}; exit 0
+  if Node 主版本 < 20: print {ok:false, reason:"node_too_old"}; exit 0（不写 stderr）
   raw = read all stdin (上限 256 KiB); parse JSON → 失败: print {ok:false, reason:"bad_input", message}; exit 0
   expect raw = {session, items}
   dir = dirname(import.meta.url 对应的文件)
@@ -353,7 +354,8 @@ inject(dir):
 | 请求处理异常 | 返回 500 `{"error":{"code":"internal"}}`，记日志 `request_error` | 已提交事务存活 | 查 journal 日志 |
 | 定时任务异常 | 记日志 `job_failed`，下一周期照常执行 | — | 查 journal 日志 |
 | 进程崩溃 | systemd `Restart=always` | 已提交数据存活；进行中请求丢失 | `systemctl status` |
-| 备份失败 | 记日志，当天不再重试，次日 03:00 之后再试；失败记忆只在进程内，重启后当天会再试一次；过期备份照常清理 | 备份目录里已有的文件在保留期内存活 | 日志关键字 `backup_failed` |
+| 备份失败 | 记日志，当天不再重试，次日 03:00 之后再试；失败记忆只在进程内，重启后当天会再试一次 | 备份目录里已有的文件在保留期内存活 | 日志关键字 `backup_failed` |
+| 备份清理失败 | 记日志，下一次维护（每小时）照常重试；不影响备份与服务 | 过期备份暂留，重试成功后清理 | 日志关键字 `backup_prune_failed` |
 | 删除日志写失败 | 删除请求返回 500，不删行 | 行仍在 | 检查磁盘 |
 | 数据损坏 | 停服 → 用 `backups/` 最新文件覆盖数据库 → 启动（自动重删、清理） | 丢失最近不到一天的数据 | 按 `docs/deploy.md` 恢复步骤 |
 | 提交脚本各类失败 | 输出 ok:false，退出码 0 | 无状态 | 无 |
@@ -397,7 +399,7 @@ Invariant 5: 提交脚本在任何情况下退出码为 0 且不写标准错误
 ## 7. 可观测性
 
 - 日志写 stdout（systemd journal 收集），每行 `key=value`：`ts`、`level`、`event`、`reqId`、`route`、`status`、`costMs`；拒收额外 `code`；不输出请求体、令牌、cookie、IP 以外的来源信息。
-- 事件名稳定：`request`、`submission_accepted`、`submission_rejected`、`purge_done`、`backup_done`、`backup_failed`、`deleted_log_applied`、`startup`、`request_error`、`job_failed`、`login_blocked`、`login_failed`。
+- 事件名稳定：`request`、`submission_accepted`、`submission_rejected`、`purge_done`、`backup_done`、`backup_failed`、`backup_prune_failed`、`deleted_log_applied`、`startup`、`request_error`、`job_failed`、`login_blocked`、`login_failed`。
 - 日志写失败不影响主流程。
 
 ## 8. 兼容性 / 迁移
