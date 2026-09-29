@@ -24,7 +24,7 @@ authority_refs:
 - 业务影响：宿主 skill 多一个子目录和一句引导语；宿主仓库流程要求的配套改动由维护者按仓库流程处理。无历史数据，无外部协作方。
 - 主要风险与兜底：敏感信息误报 → 禁写清单 + 长度限制 + 可删除；刷量 → 网络地址 / 全站限额 + 登记名单；令牌泄露 → 令牌可撤销、令牌永不写进宿主；反馈里夹带诱导指令 → 查询结果标"不可信外部文本"。
 - 明确不做：多作者平台、服务端自动处理反馈、通知推送、本地暂存重试、数据迁移、自动移除模块（详见 PRD 非目标）。
-- 确认状态：待确认
+- 确认状态：已确认（2026-09-29，维护者）
 
 ## 1. 术语表
 
@@ -141,7 +141,7 @@ flowchart LR
 | 接口 | 鉴权 | 用途 | 成功 | 关键拒收码 |
 |---|---|---|---|---|
 | `POST /v1/submissions` | 无 | 提交一次反馈（会话部分 + 1–5 条问题） | 201 `{submissionId, feedbackIds[]}` | 400 `invalid_field` / `too_many_items`；403 `skill_not_registered`；429 `ip_limit` / `global_limit`；413 `payload_too_large` |
-| `GET /v1/registry/check?name=&endpoint=` | 登记令牌 | 注入前检查名称状态 | 200 `{state: registered|old_name|unknown, enabled}` | 401 `unauthorized` |
+| `GET /v1/registry/check?name=` | 登记令牌 | 注入前检查名称状态 | 200 `{state: registered|old_name|unknown, enabled}` | 401 `unauthorized` |
 | `POST /v1/registry` | 登记令牌 | 登记名称（已存在则不变） | 200 `{name, enabled, created}` | 409 `old_name` |
 | `GET /v1/feedback?skill=…&…` | 查询令牌 | 按 skill 与字段筛选取清单 | 200 `{items[], total, notice}` | 400 `skill_required` |
 | `GET /v1/feedback/:id` | 查询令牌 | 取单条详情（含会话信息） | 200 `{item, notice}` | 404 `not_found` |
@@ -218,7 +218,7 @@ sequenceDiagram
 | 目标 1–5 | §8 D11、§11 | 可用率靠外部探测 | 健康检查接口已列；外部探测不在本产品 |
 | 非目标 1–9 | §3 | 镀金（通知、自动归并） | 已列非目标 |
 | 改动范围 / 护栏 | §6 | 注入改动宿主其他文件 | D6 只追加末尾一句 + 子目录 |
-| 注入工具规则（对象、实例配置、写入内容、改名未同步、旧名、换实例、原子性） | §8 D6/D14、§9 登记契约 | 改名未同步判定需知道模块记录的实例地址 | check 接口带 endpoint 参数由注入工具本地判定；详见 spec |
+| 注入工具规则（对象、实例配置、写入内容、改名未同步、旧名、换实例、原子性） | §8 D6/D14、§9 登记契约 | 改名未同步判定需知道模块记录的实例地址 | 注入工具读源头模块的 config.json 本地判定；详见 spec |
 | 反馈模块行为规则 | §7、D13 | 规则是提示词，不可程序兜底 | 由 FEEDBACK.md 承载 + 上线评测 |
 | 提交信息（会话/问题/服务端补充） | §9 | 字段在三处重复 | shared 包单一出处 |
 | 把关规则（限额、名单、拒收记录、保留、备份） | §9、D9、D10、D11 | 计数与日界线 | spec 详述 |
