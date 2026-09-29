@@ -117,7 +117,7 @@ flowchart TD
 
 | 字段 | 类型 | 规则 |
 |---|---|---|
-| `sessionId` | string | 可选；缺省由提交脚本生成 `s-` + 12 位十六进制；服务端要求 1–40 字符 |
+| `sessionId` | string | 可选；缺省由提交脚本生成 `s-` + 12 位十六进制；服务端要求 1–40 字符。服务端不按会话编号去重，同一会话编号的多次提交各自落库；会话内提交次数上限由 agent 自守 |
 | `taskSummary` | string | 必填，1–50 |
 | `userInfo` | string | 必填，1–50 |
 | `userInfoSource` | `known` \| `guessed` | 必填 |
@@ -151,7 +151,7 @@ flowchart TD
 
 完整请求体：`{ skill, moduleVersion, os, submittedAt, session, items }`。未知字段一律拒收（`invalid_field`，field 为该字段路径），避免 agent 把禁写内容塞进自造字段。
 
-**中文显示名**（shared 导出，管理界面用）：type：缺陷 / 使用摩擦 / 缺能力 / 建议；impact：阻断 / 绕过后完成 / 仅不便；status：待处理 / 有效 / 无效 / 重复 / 已处理；userInfoSource：已知 / 猜测。
+**中文显示名**（shared 导出，管理界面用）：type：缺陷 / 使用摩擦 / 缺能力 / 建议；impact：阻断 / 绕过后完成 / 仅不便；status：待处理 / 有效 / 无效 / 重复 / 已处理；userInfoSource：已知 / 猜测；os：darwin→macOS / win32→Windows / linux→Linux / other→其他（映射表之外的值管理界面原样显示）。
 
 **拒收码**：`payload_too_large`、`invalid_json`、`invalid_field`、`too_many_items`、`skill_not_registered`、`ip_limit`、`global_limit`、`unauthorized`、`forbidden`、`not_found`、`skill_required`、`invalid_status`、`old_name`、`name_conflict`、`internal`。`internal` 对应 500，只在服务端请求处理异常时出现，见 §5。
 
@@ -258,8 +258,8 @@ CREATE TABLE IF NOT EXISTS rejections (
 |---|---|---|
 | `node packages/server/dist/server.mjs serve` | 启动服务 | 常驻 |
 | `node packages/server/dist/server.mjs set-admin <用户名>` | 标准输入读密码（TTY 时不回显，要求输入两次），≥12 字符，写 admin 表并清空所有会话 | 0 / 1 |
-| `node packages/injector/dist/agent-feedback.mjs config --endpoint <url>` | 标准输入读登记令牌（TTY 时不回显），写本机配置 | 0 / 1 |
-| `node packages/injector/dist/agent-feedback.mjs inject <skill 源头目录>` | 见 §4.4 | 0 / 1 |
+| `node packages/injector/dist/agent-feedback.mjs config --endpoint <url> [--config-path <文件>]` | 标准输入读登记令牌（TTY 时不回显），写本机配置；`--config-path` 覆盖本机配置文件位置，缺省为 §2.3 的默认路径 | 0 / 1 |
+| `node packages/injector/dist/agent-feedback.mjs inject <skill 源头目录> [--config-path <文件>] [--module-dir <目录>]` | 见 §4.4；`--config-path` 同上（读取）；`--module-dir` 指定反馈模块包目录（含 `package.json` 与构建产物），缺省为本仓 `packages/module` | 0 / 1 |
 | `node <宿主>/agent-feedback/submit.mjs [--dry-run]` | 见 §4.3 | 恒 0 |
 
 ## 4. 核心逻辑
@@ -305,7 +305,7 @@ main():
   exit 0（全程 try/catch 兜底为 {ok:false, reason:"internal"}，不写 stderr）
 ```
 
-frontmatter 解析：文件以 `---\n` 开头，取到下一行 `---` 为止；顶层 `name:` 行取值；`metadata:` 行之后缩进行中的 `version:` 取值；去掉成对的单/双引号。只认这两个位置（Overview D5）。
+frontmatter 解析：文件以 `---\n` 开头，取到下一行 `---` 为止；顶层 `name:` 行取值；`metadata:` 块（顶层 `metadata:` 行之后、下一个顶层键之前的所有缩进行）内任意缩进层级的 `version:` 行取值（不区分层级，更深层嵌套的同样采纳；块内出现多个非空 `version:` 时以最后一个为准）；去掉成对的单/双引号。只认这两个位置（Overview D5）。
 
 `os` 映射：`darwin`/`linux`/`win32` 原样，其余 `other`。
 
@@ -340,8 +340,8 @@ inject(dir):
 
 - 服务端渲染：`views/layout.ts` 提供页面骨架（左侧导航：反馈 / Skill 登记 / 令牌与设置；顶部标题 "Agent Feedback 管理后台"）与内联 CSS；所有插入 HTML 的文本 MUST 经 `escapeHtml`。
 - 视觉以原型为准（中性基线、卡片、表格、徽标），不引外部资源。
-- 列表页：筛选表单（GET）含 9 个筛选字段 + 时间范围（选"自定义起止"时显示两个日期输入）；表格列：编号、标题、Skill、类型、影响、状态、已解决、收录时间（`MM-DD HH:mm` 北京时间）；空结果显示"没有符合条件的反馈" + "清除全部筛选"链接。
-- 详情页：问题卡（详细描述、推荐解法或"未解决，无"、本会话出现次数、收录时间）在上；会话信息卡（Skill+版本、反馈模块版本、任务概要、用户信息带"已知/猜测"前缀、操作系统、agent+版本、运行环境+版本、会话编号）在下；相关 skill 列表；同次提交的其他问题链接；状态下拉 + 保存；删除按钮打开确认对话框（CSS `:target`，确认后提交删除表单），对话框文字"删除后界面和查询通道都查不到，且不可恢复。"
+- 列表页：筛选表单（GET）含 9 个筛选字段 + 时间范围（选"自定义起止"时显示两个日期输入）；"近 7 天" / "近 30 天"= 含今天在内的 7 / 30 个北京自然日（起点为第 6 / 29 天前的北京 00:00:00，与登记页口径一致），"近 6 个月"= 从"当前北京时间减 6 个日历月"所在的北京自然日起（月份换算同 §4.2）；表格列：编号、标题、Skill、类型、影响、状态、已解决、收录时间（`MM-DD HH:mm` 北京时间）；空结果显示"没有符合条件的反馈" + "清除全部筛选"链接；分页每页 20 条，页脚恒显示"第 N 页，共 M 页"（M 为总页数，至少 1）与上一页 / 下一页链接。
+- 详情页：问题卡（首行为类型、影响、状态徽标与"已解决" / "未解决"标记（依据该条反馈的 `resolved`）；详细描述、推荐解法或"未解决，无"、本会话出现次数、收录时间）在上；会话信息卡（Skill+版本、反馈模块版本、任务概要、用户信息带"已知/猜测"前缀、操作系统（按 §2.1 的中文显示名）、agent+版本、运行环境+版本、会话编号）在下；相关 skill 列表；同次提交的其他问题链接；状态下拉 + "保存状态"按钮；删除按钮打开确认对话框（CSS `:target`，确认后提交删除表单），对话框文字"删除后界面和查询通道都查不到，且不可恢复。"
 - 登记页：表格（名称 + 改名按钮、收录开关表单按钮、登记时间、近 7 天收录数——按北京自然日，含今天共 7 个自然日；模块版本分布——统计全部保留期内的收录，如 `1.0.0 · 38 / 0.9.0 · 4`）；页头说明"新增登记：对 skill 的源头运行注入工具"；空态"还没有登记任何 skill"；改名对话框含说明"须与宿主 skill 自己声明的名称完全一致"与"改名后，<旧名> 的 N 条历史反馈都会归到新名称下；仍以旧名称提交的反馈将不再收录。"；近 7 天拒收表（日期、超出限额、未登记或已停用、格式不合格）。
 - 设置页：令牌表 + 两个生成按钮（带名称输入）+ 修改密码表单；生成成功页显示完整令牌与"令牌只显示这一次，关闭后无法再查看"。
 - 会话：登录成功生成 32 字节随机 id，cookie 存明文、库存 SHA-256，有效期 7 天；cookie 属性 `HttpOnly; SameSite=Strict; Path=/`；`COOKIE_SECURE=1` 时加 `Secure`。

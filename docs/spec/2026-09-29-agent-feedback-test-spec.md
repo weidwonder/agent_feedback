@@ -42,7 +42,6 @@ authority_refs:
   - 长链路：从 `config` 到删除日志重放的真实进程端到端（§8）。
 - **不覆盖**：
   - 宿主 agent 与维护 agent 的真实会话行为（何时反馈、静默、禁写清单、会话上限、如实回答、维护 agent 抗注入）：属上线评测，见 `docs/report/上线评测场景.md`，台账登记为缺。
-  - Windows 平台实跑：由主会话在 Windows 主机完成，台账登记为部分。
   - 浏览器里的交互（CSS `:target` 确认对话框的打开与取消、页面视觉）：没有浏览器自动化，靠人工点验。
   - 真实 VPS 部署、TLS、systemd 运行、反向代理转发：只测部署文件的内容一致性。
   - 网络层攻击与压测：PRD 风险表明确交给服务器厂商；单实例日收录上限 500，不做性能压测。
@@ -53,11 +52,11 @@ authority_refs:
 
 | 清单项 | 是否命中 | 落点 |
 |---|---|---|
-| PRD 与后端文档不一致 | 是 | §10 待确认 1–4：列表"近 7 天"口径、原型与实现的展示差异、CLI 契约缺参数、重复会话编号语义 |
+| PRD 与后端文档不一致 | 是 | §10 项 1–4（均已澄清）：列表"近 7 天"口径、原型与实现的展示差异、CLI 契约缺参数、重复会话编号语义 |
 | 状态流转遗漏 / 非法状态可操作 | 是 | 五种状态可任意互改（spec §10 状态机）：风险 R7；停用/旧名/未登记的提交：R4 |
 | 接口之间数据传递错误 | 是 | 宿主 SKILL.md → 提交脚本 → 服务端 → 查询接口 → 管理界面的字段传递：R1、L1 |
 | 用户/角色/租户/资源归属越权 | 是 | 令牌种类与会话的边界、查询令牌不能做管理动作：R6 |
-| 幂等 / 重复提交 / 重试导致数据重复或状态错乱 | 是 | 重复注入、重复登记、重复 PATCH 同状态、重复删除：R8；服务端不去重提交：§10 待确认 4 |
+| 幂等 / 重复提交 / 重试导致数据重复或状态错乱 | 是 | 重复注入、重复登记、重复 PATCH 同状态、重复删除：R8；服务端不去重提交：§10 项 4（已写入 spec §2.1） |
 | 并发下库存/余额/额度/次数等竞争 | 是 | 全站与来源地址限额并发：R3 |
 | 异步任务/回调/消息延迟导致最终状态不一致 | 是 | 每小时维护、每分钟备份检查的编排；收录后 1 分钟内可查：R9 |
 | 删除/取消/撤回/失败/超时后的二次操作 | 是 | 删除后再查、再删、从旧备份恢复后复现：R2；停用后提交：R4 |
@@ -101,7 +100,7 @@ authority_refs:
 | API-ADM-SET | `GET /admin/settings`、`POST /admin/tokens`、`POST /admin/tokens/:id/revoke`、`POST /admin/password` | Cookie；POST 同源 | 表单：`kind`、`name`；`current`、`next`、`confirm` | — | 令牌成功页一次性展示完整令牌 | 密码不足 12 字符、两次不一致、当前密码错误均拒绝 | 令牌只存 SHA-256；改密码清空全部会话 | 撤销幂等 | — |
 | API-SUBMIT | `node <宿主>/agent-feedback/submit.mjs [--dry-run]` | 环境变量 `AGENT_FEEDBACK_DISABLED=1` 关闭 | 标准输入：`{session, items}` JSON（≤ 256 KiB） | — | 标准输出恰一行 JSON：`{ok:true,submissionId,feedbackIds,sessionId}` / `{ok:true,dryRun:true,body}` / `{ok:false,reason}` | `reason` ∈ `disabled`、`node_too_old`、`bad_input`、`not_configured`、`host_unreadable`、`invalid`、`unreachable`、`rejected`、`internal` | 只向服务端发一次 POST，不落本地文件 | 无状态，不重试 | 无 |
 | API-CLI-SERVER | `node packages/server/dist/server.mjs serve` / `set-admin <用户名>` | 环境变量；`set-admin` 从标准输入读密码 | — | — | 退出码 0/1；配置非法时 stderr 含变量名 | — | `set-admin` 写 admin 并清空全部会话 | 重跑覆盖密码 | 无 |
-| API-CLI-INJ | `node packages/injector/dist/agent-feedback.mjs config --endpoint <url>` / `inject <目录>` | 登记令牌只从标准输入读 | 可选 `--config-path`、`--module-dir` | — | 退出码 0/1；stdout 摘要；失败原因打到 stderr | 见 spec §4.4 各 `fail` 分支 | 写模块目录、追加引导语、向服务登记；失败回滚 | 重复注入不重复追加引导语与登记 | `--config-path`、`--module-dir` 未在 spec §3 CLI 契约列出（待确认 3） |
+| API-CLI-INJ | `node packages/injector/dist/agent-feedback.mjs config --endpoint <url>` / `inject <目录>` | 登记令牌只从标准输入读 | 可选 `--config-path`、`--module-dir` | — | 退出码 0/1；stdout 摘要；失败原因打到 stderr | 见 spec §4.4 各 `fail` 分支 | 写模块目录、追加引导语、向服务登记；失败回滚 | 重复注入不重复追加引导语与登记 | `--config-path`、`--module-dir` 已列入 spec §3 CLI 契约（§10 项 3） |
 
 ## 4. 测试数据构造方案（Fixture）
 
@@ -184,7 +183,7 @@ authority_refs:
 | FR-019 关闭开关与 `--dry-run` | MOD:--dry-run 输出完整请求体且不发请求；MOD:AGENT_FEEDBACK_DISABLED=1 不发请求；MOD:Node 18 环境…disabled；E2E:5b | ✅ |
 | FR-020 `FEEDBACK.md` 与 `PRIVACY.md` 写明全部行为规则与收集范围 | 无自动用例；评审报告 `docs/report/2026-09-29-agent-feedback-review-report.md` 有逐条对照；语义效果靠上线评测 | 缺：文档语义无法自动断言，行为达标需上线评测（台账 ❌） |
 | FR-021 模块自带 `.gitignore` 忽略 `.runtime/` | MOD:模块 .gitignore 资产忽略 .runtime/；INJ:成功…文件齐全；E2E:5 | ✅ |
-| FR-022 `config` 写 0600 | INJ:写入本机配置，权限 0600；INJ:已存在的宽权限配置文件会被收紧；INJ:非法地址与空令牌被拒绝；E2E:4 | ✅（Windows 上 0600 不适用，见 §10 待确认 8） |
+| FR-022 `config` 写 0600 | INJ:写入本机配置，权限 0600；INJ:已存在的宽权限配置文件会被收紧；INJ:非法地址与空令牌被拒绝；E2E:4 | ✅（Windows 上 0600 不适用，见 §10 项 8） |
 | FR-023 `inject` 前置检查、幂等、登记、回滚、不含令牌 | INJ:全部（成功、重复注入、未配置、无 name、name 超长、旧名、改名未同步、其他实例、回滚两条、检查阶段网络失败、含令牌回滚、缺模块源文件）；E2E:5 | ✅ |
 | FR-024 注入成功后的提示 | INJ:成功…（断言含"目录白名单"提示）；INJ:停用的 skill：注入后仍停用并提示 | ✅ |
 | FR-025 部署文件与说明 | DEL:部署文件（3 条：文件存在、单元变量与配置表一致、代理转发一致）；CFG:全部 3 条 | ✅ |
@@ -249,7 +248,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | U11 | PATCH 附带其他字段；DELETE 查询通道 | ADV | API-FPATCH | FX-SEED | body 加 `title` 等 | 只改 `status`；DELETE 404 | 集成 | SEC:查询通道没有删除入口… |
 | U12 | 管理界面未登录任何页面；令牌代替会话；跨源 POST | DT、ADV | API-ADM-* | FX-ADMIN | 去 Cookie、换 Origin | 302 到登录页；403 | 集成 | ADM:未登记…；ADM:跨源或缺来源的 POST；SEC:令牌不能代替会话 |
 | U13 | 登录：错误密码、成功、退出后失效、20 次失败封禁 | ST | API-ADM-AUTH | FX-ADMIN | — | 401 提示；303 与 cookie 属性；会话失效；20 次后正确密码也被拒 | 集成 | ADM:登录…；ADM:同 IP 登录失败 20 次 |
-| U14 | 列表筛选 9 字段与时间范围映射 | EC、DT | API-ADM-FB | FX-SEED | query | 结果集等于手工推演 | 集成 | ADMF:4 条 |
+| U14 | 列表筛选 9 字段与时间范围映射（含近 7 / 30 天毫秒边界） | EC、DT、BV | API-ADM-FB | FX-SEED | query | 结果集等于手工推演 | 集成 | ADMF:5 条 |
 | U15 | 详情版式；改状态提示；删除后 404；复用统一 404 页 | EC | API-ADM-FB | FX-SEED | — | 见用例 | 集成 | ADMD:反馈详情…；ADM:详情展示会话信息… |
 | U16 | 登记页：启停、改名冲突、历史归属、旧名随后 403、7 天拒收表 | ST | API-ADM-SKILL | FX-SEED | — | 见用例 | 集成 | ADM:登记页（2 条） |
 | U17 | 令牌只显示一次、列表不含明文、撤销；改密码需当前密码 | ST | API-ADM-SET | FX-ADMIN | — | 见用例 | 集成 | ADM:令牌…；ADM:修改密码 |
@@ -317,20 +316,20 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 | 需求/规则 | 接口 | 数据 | 用例 | 疑问（冲突/缺失/不明确） | 分类 |
 |---|---|---|---|---|---|
-| 1. 反馈列表"近 7 天""近 30 天" | API-ADM-FB | FX-SEED | ADMF:时间范围（只测远离边界的数据） | 待确认：PRD 只写"近 7 天、近 30 天、近 6 个月"，spec 只在登记页把"近 7 天"定义为含今天共 7 个北京自然日，列表页未定义边界。实现取含今天共 7 / 30 个北京自然日。边界口径未确认前不为它写边界用例 | 契约疑问 |
-| 2. 原型与实现的展示差异 | API-ADM-* | — | 无 | 待确认：原型登录错误文案为"账号或密码不正确，请重新输入"，PRD 与实现为"账号或密码不正确"；原型详情"操作系统"显示"macOS"，实现显示存储值（`darwin` 等），spec 未定义操作系统显示名；原型头部含"已解决"徽标、按钮文案"保存状态"，实现无徽标、文案"保存"；原型分页"第 1 页，共 26 页"，实现"第 1 / 2 页"。原型标注"临时视觉假设"，版式差异不算缺陷，但文案与显示名属用户可见内容，待维护者定以谁为准 | 契约疑问 |
-| 3. CLI 契约 | API-CLI-INJ | — | E2E:4、5 | 待确认：`inject`/`config` 还接受 `--config-path`、`--module-dir`（`packages/injector/src/cli.ts#main`），spec §3 CLI 契约表没有列；测试依赖前者把配置写到临时位置 | 契约疑问 |
-| 4. 同一会话编号重复提交 | API-SUB | — | 无 | 待确认：会话上限 2 次由 agent 自守；spec 未定义服务端对重复 `sessionId` 的处理，实现是各自落库。不为它固化行为 | 契约疑问 |
+| 1. 反馈列表"近 7 天""近 30 天" | API-ADM-FB | FX-SEED | ADMF:时间范围、ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 已澄清：与登记页口径一致，"近 7 天 / 近 30 天"= 含今天在内的 7 / 30 个北京自然日；依据 `packages/server/src/admin/routes.ts#toFilters`（起点为第 6 / 29 天前的北京 00:00:00），已写入 spec §4.5。边界用例：北京 7 天前 23:59:59.999 不在"近 7 天"，6 天前 00:00:00 在；30 天同理 | 契约疑问 |
+| 2. 原型与实现的展示差异 | API-ADM-* | — | ADM:详情操作系统显示中文名…、ADM:详情展示会话信息…、ADM:列表分页 | 已澄清：权威顺序"PRD ≥ 原型 > spec > 实现"。操作系统显示名、详情头部"已解决 / 未解决"标记、按钮"保存状态"、分页"第 N 页，共 M 页"按原型对齐并写入 spec §2.1 / §4.5；登录错误文案 PRD 为"账号或密码不正确"，PRD 优先，保持不改。版式差异不算缺陷（原型标注"临时视觉假设"） | 契约疑问 |
+| 3. CLI 契约 | API-CLI-INJ | — | E2E:4、5 | 已澄清：`--config-path`（覆盖本机配置文件位置，`config` 与 `inject` 均接受）、`--module-dir`（仅 `inject`，反馈模块包目录，缺省为本仓 `packages/module`）依据 `packages/injector/src/cli.ts#main`，已补入 spec §3 CLI 契约表 | 契约疑问 |
+| 4. 同一会话编号重复提交 | API-SUB | — | 无 | 已澄清：服务端不按会话编号去重，同一会话编号的多次提交各自落库；会话内次数上限由 agent 自守。依据当前实现与 PRD（上限属 agent 行为规则），已写入 spec §2.1。不为"重复落库"另写固化用例 | 契约疑问 |
 | 5. 改名确认的"取消" | API-ADM-SKILL | — | 无 | 待确认：取消是对话框里的 `href="#"` 锚点，纯浏览器行为，无服务端契约；需人工在浏览器点验"取消则名称不变" | 集成疑问 |
-| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 待确认：spec §4.3 写"`metadata:` 行之后缩进行中的 `version:`"，未区分缩进层级；实现对任意缩进的 `version:` 都采纳（真实样本里没有此写法）。不固化 | 契约疑问 |
+| 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清：以 `packages/shared/src/frontmatter.ts#parseFrontmatter` 为准，`metadata:` 块内任意缩进层级的 `version:` 行都采纳（多个非空时以最后一个为准），已写入 spec §4.3。真实样本里没有更深层嵌套写法，`packages/shared/test/` 不在本轮改动范围，未增专门用例 | 契约疑问 |
 | 7. 提交脚本的兜底 `internal` | API-SUBMIT | — | 无 | 待确认：spec §4.3 要求全程 try/catch 兜底为 `{ok:false,reason:"internal"}`，没有可触发的稳定入口（不构造被测代码内部异常），未测 | 实现风险 |
-| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | E2E:4（0600 断言在 Windows 上跳过） | 待确认：`%APPDATA%\agent-feedback\config.json` 路径、路径分隔符、`process.platform=win32` 的 `os` 字段、SIGTERM 收尾，由主会话在 Windows 主机实跑后确认 | 集成疑问 |
+| 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已澄清（2026-09-29 实跑，见 §11）：Windows 主机（Node v22.22.3）干净克隆 167 个测试 166 通过、1 跳过（配置文件 0600 权限用例，Windows 无 POSIX 权限位）、0 失败；配置文件私密性在 Windows 上依赖用户目录访问控制（spec 已写明）；`%APPDATA%\agent-feedback\config.json` 路径由 win32 上的 `defaultConfigPath` 用例断言 | 集成疑问 |
 | 9. 宿主 agent 行为规则 | — | — | 无 | 待确认：PRD 的静默、禁写、会话上限、格式重试、如实回答等只能靠真实会话评测验证；`docs/report/上线评测场景.md` 已备场景，尚未执行 | 实现风险 |
 | 10. `deploy.md` 与配置表 | DEL | — | DEL:3 条 | `docs/deploy.md` 明确不复述变量表（以 spec §6 为唯一出处），AC-019 的"一致"由 systemd 单元与配置表比对承担；`deploy.md` 本身未逐项比对 | 契约疑问 |
 
 ## 11. 准出标准
 
-- [x] **entry**：spec 已冻结、功能代码 feature-complete、构建产物可生成。测试环境矩阵：单仓测试（临时服务 + 假服务，`npm test` 内）/ 真实进程端到端（同一命令内，要求先 `npm run build`）/ Windows 主机实跑（由主会话另行完成）。
+- [x] **entry**：spec 已冻结、功能代码 feature-complete、构建产物可生成。测试环境矩阵：单仓测试（临时服务 + 假服务，`npm test` 内）/ 真实进程端到端（同一命令内，要求先 `npm run build`）/ Windows 主机实跑（已完成，见下）。
 - [ ] 追溯矩阵无"缺"：仍有 4 行"缺"，均有原因：FR-020 与 AC-015（文档语义，靠评审报告与上线评测）、改名确认"取消"（浏览器端）、宿主 agent 行为（上线评测）；另有 6 行"部分"（FR-009、FR-018、AC-001、AC-007、AC-014、维护 agent 读诱导文本），原因见矩阵。这些已在台账挂账，不属于本仓自动化可补。
 - [x] 单仓测试与真实进程端到端通过：`npm run typecheck && npm run build && npm test` 全绿（本次运行数字见下）。
 - [x] 命中 §8 判定的端到端用例存在，且每个环节的中间产物都有断言（L1 共 15 步，其中步 5b、6c、9、10、11、12 为本轮新增；既有步 7、8 补了时效与登记页断言）。
@@ -339,8 +338,8 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 - [x] P0/P1 高风险点用例全过（§2 R1–R13）。
 - [x] 准出前的反向自检：本轮新增用例均做过"改坏被测代码 → 变红 → 恢复"，结果见下表；恢复后 `git status` 无遗留改动。
 - [ ] 上线评测（AC 之外，PRD「AI 能力说明」准出标准：该反馈触发率 ≥ 80%、不该反馈误触发率 ≤ 10%、禁写信息出现率 0）：**未执行，不达标之前不上线**（台账 ❌）。
-- [x] "待确认"项已明确记录为遗留（§10 共 10 项）。
-- [ ] 关键路径手动验证：Node 18 实跑与 10 秒超时已完成（下）；Windows 实跑与浏览器点验待做。
+- [x] §10 共 10 项：第 1、2、3、4、6、8 项已澄清，其余 4 项（5、7、9、10）仍为遗留，均已明确记录。
+- [ ] 关键路径手动验证：Node 18 实跑、10 秒超时、Windows 实跑已完成（下）；浏览器点验待做。
 
 ### 手动验证记录
 
@@ -355,7 +354,9 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 
 **10 秒超时实跑**（本机，一个收到请求后永不响应的假服务，宿主目录内的构建产物，标准输入传合规 JSON）：耗时 10 秒，标准输出 `{"ok":false,"reason":"unreachable","sessionId":"s-…"}`，退出码 0，stderr 空（0 字节）。
 
-**待做**：Windows 主机实跑（主会话）；浏览器点验确认对话框的打开与取消、页面视觉（维护者）。
+**Windows 实跑**（Windows 主机，2026-09-29，Node v22.22.3，干净克隆）：`npm install`、`npm run typecheck`、`npm run build`、`npm test` 全部通过；`npm test` 167 个测试中 166 通过、1 跳过（配置文件 0600 权限用例，Windows 无 POSIX 权限位）、0 失败。过程中发现并修复的都是测试写法的平台问题：esbuild 可执行文件与 npm 需经 `.cmd`；`--import` 需 file URL；systemd 单元比对不能用 `path.resolve` 后的路径；git 在 Windows 检出为 CRLF，新增 `.gitattributes` 统一 LF。产品代码无改动。配置文件私密性在 Windows 上依赖用户目录访问控制，spec 已写明。
+
+**待做**：浏览器点验确认对话框的打开与取消、页面视觉（维护者）。
 
 ### 反向自检记录
 
@@ -378,6 +379,11 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | CFG | 默认端口改 8788；`IP_DAILY_LIMIT` 下限放宽到 0 | 各自变红 |
 | DEL:部署文件、清单 | systemd 单元删一个变量；评测场景表的 N 行被破坏 | 各自变红 |
 | ADMF | 丢掉 `impact` 映射；`agentName` 映射成 `harnessName`；30 天范围改 6 天；`resolved` 取反 | 各自变红 |
+| ADMF:近 7 / 30 天含今天在内共 7 / 30 个北京自然日 | 近 7 天范围的偏移由 6 天改为 7 天（起点多算一天） | 变红 |
+| ADM:详情操作系统显示中文名 | 把 `LABELS.os` 的 `win32` 显示名改成 `Win` | 变红 |
+| ADM:列表分页 / 只有一页 | 分页文案改回 `第 N / M 页` | 两条各自变红 |
+| ADM:详情展示会话信息（已解决标记、保存状态） | 去掉详情头部的已解决 / 未解决徽标；按钮文案改回`保存` | 各自变红 |
+| INJ:本机配置默认路径 | 非 win32 分支的 `.config` 改成 `.cfg` | 变红（win32 用例在 Windows 主机上执行，Mac 上跳过） |
 | ADMD:详情版式 | 交换问题卡与会话信息卡的顺序 | 变红 |
 | JOB:备份早于被删反馈的创建 | 重放时不再抬高自增序号 | 变红（既有的删除日志用例在此改坏下仍是绿的：它的备份含被删编号，序号本来就够高，这条抬序号的代码路径此前没有用例） |
 | JOB:每小时跑维护、每分钟检查备份 | 每小时改每两小时；去掉定时任务的异常兜底 | 各自变红 |
