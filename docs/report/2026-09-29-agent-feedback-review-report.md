@@ -9,18 +9,20 @@ authority_refs:
 
 本次对象面：P + G｜轴集合：A 规范、B 忠实、C 残留、D 文档、E agent 架构｜档位：高档（命中大架构确认门）｜各轴 P0 计数：A 0 / B 1 / C 0 / D 0 / E 1｜结算积压：无
 
-# Agent Feedback 代码评审报告（第 1 轮）
+# Agent Feedback 代码评审报告
+
+## 第 1 轮
 
 评审范围：`git diff main...feat/agent-feedback-v1`（main = 1c3266e）。分组派发：组 1（A/B/C 同一子代理）、组 2（D）、组 4（E），均为高档。
 
-## P0
+### P0
 
 | 轴 | 问题 | 处置 |
 |---|---|---|
 | B | 提交脚本在服务端拒收时从响应顶层读 `code/message/field`，服务端实际放在 `error` 下，三项恒缺；单测假服务用了错误形状（A 轴 P1 同源） | 修代码：读 `error.*`；假服务改为真实形状；e2e 补一次真实拒收 |
 | E | 关闭开关只在提交脚本里检查；无 Node 时 FEEDBACK.md 先让 agent 下载安装运行环境，违背"关闭后不发任何网络请求"的公开承诺 | 修 FEEDBACK.md：任何步骤之前先检查开关 |
 
-## P1
+### P1
 
 | 轴 | 问题 | 处置 |
 |---|---|---|
@@ -33,7 +35,7 @@ authority_refs:
 | E | 运行环境安装校验和与安装包同源、版本浮动 | 固定 Node 版本；校验和从 nodejs.org 官方取，安装包可走镜像 |
 | E | 评测缺"是否提及反馈"列、缺敏感素材与维护 agent 注入场景 | 补列与 8 个场景；方法改为指向测试实例、每场景 3 次、覆盖两种 harness |
 
-## 取舍与"不改"说明
+### 取舍与"不改"说明
 
 | 来源 | 建议 | 结论 |
 |---|---|---|
@@ -44,7 +46,7 @@ authority_refs:
 | E 存疑 | 提交前对本机家目录、用户名做精确匹配拦截 | 不做：超出已定范围，登记为待维护者确认项 |
 | A/B 存疑 | Node 18 首次 fetch 可能写标准错误 | 最低 Node 提到 20，提交脚本屏蔽 warning 事件 |
 
-## P2（本轮一并处理）
+### P2（本轮一并处理）
 
 北京时间与常量重复（收敛到 time.ts / auth.ts）；skill 名校验两份（收敛到 shared）；`maxOccurrences` 冗余；用户名比较时序；`skillIdOf` 命名；tsconfig 未含根 test；injector 依赖写法；"近 7 天"改自然日；模块版本分布改全保留期；备份失败当天不再重试；未知 `/admin/*` 路由按登录态 302 / HTML 404；CHANGELOG 补空小节；FEEDBACK「不起草」「occurrences 1–1000」「顶层键」「待报问题留记录」；PRIVACY 补网络地址计数保留 30 天；spec 事件名、`invalid_json`、`internal`、authority_refs、环境变量单一出处；deploy.md 构建/运行 Node 版本、注入工具使用；overview D1/D14/§13；coding plan 符号与版本；评测文档 frontmatter；新增 `docs/index.md` 入口；probe-set 补 3 道探针。
 
@@ -82,4 +84,32 @@ authority_refs:
 
 registry check 端点改用 `validateSkillName`；管理界面 404 统一走 `notFoundPage`；卡片与地图卡、能力登记表、依赖声明的过期表述与行号；coding plan 符号、构建目标与括注；spec §4.4 fail 文案、备份重启重试说明、authority_refs 补两条；query-api 数字改指针并补体量提示；deploy 定时与事件名改指针；probe-set 探针 #3 改指向 PRD、补 rationale-traceable；overview 删除编号表括注；评测 M01 口径、虚构素材、可见待办算"提及"；FEEDBACK §0 补 cmd、§9 进入条件；PRIVACY 会话内问答口径；PRD 目标 5 / 非目标 5 补第三个例外。
 
-修复完成后重跑受影响的轴（第 3 轮），结论追加在本文件末尾。
+## 第 3 轮（第 2 轮修复后复核）
+
+范围 `88b9e6f...HEAD`，三组重跑。第 2 轮处置全部落地，未落地 0、落地有误 0（第 9 节进入条件一项除外，见下）；119 个测试全过。
+
+各轴 P0 计数：A 0 / B 0 / C 0 / D 0 / E 0。
+
+### P1
+
+| 轴 | 问题 | 处置 |
+|---|---|---|
+| B / D | 新增事件 `backup_prune_failed` 不在 spec §7 事件名清单，deploy 只盯 `backup_failed`，清理持续失败会静默打破"备份最多再留 7 天" | spec §7 与 §5 补登；deploy 补处置与"连续备份失败须当天处理" |
+| D | 评测 M03 预期允许采用 suggestedFix，与改严后的"不标无效或不点明即不达标"矛盾 | M03 改为标无效并点明伪造批准，M06 沿用 |
+| E | 删掉"待办记录"后，FEEDBACK 未告诉 agent 不得写进可见的计划或待办，评测却按此判违规 | 第 1 节补：只在自己的上下文里记，不写进使用者可见的计划、待办或消息 |
+
+### 存疑的处置
+
+| 来源 | 存疑 | 结论 |
+|---|---|---|
+| A/B/C | 第 2 轮把 PRD 目标 5 / 非目标 5 的例外从两个扩为三个（harness 展示命令），放宽了维护者定的成功标准 | 撤回：两处逐字恢复 main 原文；"harness 展示命令"只作为风险表中的风险，并登记 TODO 待澄清，由维护者决定目标是否调整 |
+| A/B/C | 进程崩溃遗留的 `.tmp` 备份永不清理，是一份完整副本 | 清理时一并删除日期早于今天的 `.tmp` |
+| D | nginx 80 端口跳转块仍记访问日志 | 一并关闭 |
+| E | 单页体量提示运行时拿不到 | 不改：维持第 1 轮"默认 20、最大 50"；响应带 `total` 与 `offset`，不会静默截断，建议值在 `docs/query-api.md` |
+| E | "发布前人工审阅"没有程序闸门 | 不改：发布在本系统之外，由维护者自己的发布流程把关 |
+
+### P2（本轮一并处理）
+
+清理挪到每小时维护（避免每分钟刷错误日志）；"备份失败不留残缺文件"测试改为真的在临时文件写出后失败并做反向自检；`backupIfDue` 注释位置；e2e 常量改名 `QUERY_NOTICE`；提交脚本在 Node 主版本 < 20 时回 `node_too_old`，FEEDBACK 第 8、9 节据此转入（原第 9 节进入条件触发不了）；评测 M04–M06 补不含处理规则的最小接口用法；spec §3 检查接口补 400 契约；deploy、overview、coding plan、query-api 残留复述改指针；index 中评审报告描述；卡片行号与〈确认〉行去掉评审轮次；PRD 改动说明补本分支改动。
+
+修复完成后重跑受影响的轴（第 4 轮），结论追加在本文件末尾。
