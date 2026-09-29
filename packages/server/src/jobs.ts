@@ -32,22 +32,32 @@ export function purgeExpired(db: DatabaseSync, now: Date): number {
 /**
  * 清理备份目录：删除日期不晚于 7 天前的备份（只留当天与前 6 天共 7 份），
  * 以及日期早于今天（北京时间）的残留临时文件（进程崩溃遗留的完整副本）；当天的临时文件可能正在写入，不动。
- * 目录不存在视为无事可做。
+ * 目录不存在视为无事可做。逐个文件容错：单个文件删不掉不中断整轮，其余过期文件照常删；
+ * 本轮有任何失败时，结束后抛出一个汇总错误（列出失败的文件名与原因）。读目录失败直接抛出。
  */
 export function pruneBackups(dataDir: string, now: Date): void {
   const dir = join(dataDir, 'backups');
   if (!existsSync(dir)) return;
   const today = beijingDay(now).replaceAll('-', '');
   const oldest = beijingDay(new Date(now.getTime() - BACKUP_KEEP_DAYS * DAY_MS)).replaceAll('-', '');
+  const failures: string[] = [];
+  const remove = (name: string): void => {
+    try {
+      rmSync(join(dir, name), { force: true });
+    } catch (err) {
+      failures.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
   for (const name of readdirSync(dir)) {
     const backup = BACKUP_FILE.exec(name);
     if (backup && backup[1]! <= oldest) {
-      rmSync(join(dir, name), { force: true });
+      remove(name);
       continue;
     }
     const stale = BACKUP_TMP_FILE.exec(name);
-    if (stale && stale[1]! < today) rmSync(join(dir, name), { force: true });
+    if (stale && stale[1]! < today) remove(name);
   }
+  if (failures.length > 0) throw new Error(`${failures.length} 个备份文件清理失败：${failures.join('；')}`);
 }
 
 let failedBackupTarget: string | null = null;

@@ -36,6 +36,15 @@ describe('管理界面细节', () => {
     assert.ok(html.includes('href="/admin/skills"'), '使用统一布局');
   });
 
+  it('反馈详情：问题在上、会话信息在下，相关 skill 与同次提交的其他问题各有小节（spec §4.5）', async () => {
+    const [a] = seedSubmission(ts.db, { skill: 'order-skill', items: [{ title: '版式甲' }, { title: '版式乙' }] });
+    const html = await (await fetch(`${ts.baseUrl}/admin/feedback/${a}`, { headers: { Cookie: cookie } })).text();
+    const at = (h: string) => html.indexOf(`<h3>${h}</h3>`);
+    for (const h of ['问题', '会话信息', '相关 skill', '同次提交的其他问题']) assert.ok(at(h) >= 0, `缺少小节「${h}」`);
+    assert.ok(at('问题') < at('会话信息'), '问题在会话信息之上');
+    assert.ok(at('会话信息') < at('相关 skill'));
+  });
+
   it('近 7 天收录按 7 个北京自然日（含今天），版本分布不限 7 天', () => {
     const now = new Date('2026-09-29T12:00:00Z'); // 北京 09-29 20:00
     // 6 天前（北京 09-23）00:00 = UTC 09-22 16:00：边界内；前一毫秒：边界外

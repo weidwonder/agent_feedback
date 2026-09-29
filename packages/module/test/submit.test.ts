@@ -254,3 +254,96 @@ test('nodeTooOld 按主版本判断是否低于 Node 20', () => {
   assert.equal(nodeTooOld('20.0.0'), false);
   assert.equal(nodeTooOld('22.13.1'), false);
 });
+
+// 脚本级回归：用预加载脚本把 process.versions.node 伪装成 18.20.0，直接运行构建产物。
+// 标准输入保持打开且不写入：脚本在版本门槛处必须不等标准输入就结束。
+const fakeNode18 = join(here, 'fixtures', 'fake-node18.mjs');
+
+function runAsNode18(host: string, env: Record<string, string>) {
+  return new Promise<{ status: number | null; stdout: string; stderr: string }>((ok, fail) => {
+    const child = spawn(process.execPath, ['--import', fakeNode18, join(host, 'agent-feedback', 'submit.mjs')], {
+      env: { ...process.env, AGENT_FEEDBACK_DISABLED: '', ...env },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const guard = setTimeout(() => {
+      child.kill('SIGKILL');
+      fail(new Error('脚本在版本门槛处没有结束：仍在等标准输入'));
+    }, 8000);
+    child.stdout.on('data', (c) => (stdout += c));
+    child.stderr.on('data', (c) => (stderr += c));
+    child.on('error', fail);
+    child.on('close', (status) => {
+      clearTimeout(guard);
+      ok({ status, stdout, stderr });
+    });
+  });
+}
+
+test('Node 18 环境（预加载伪装版本）：不设开关时 stdout 恰一行 node_too_old，退出码 0，stderr 为空，不读标准输入也结束，不发请求', async () => {
+  const host = makeHost();
+  const before = received.length;
+  const r = await runAsNode18(host, {});
+  assert.equal(r.status, 0);
+  assert.equal(r.stderr, '');
+  assert.equal(r.stdout, '{"ok":false,"reason":"node_too_old"}\n');
+  assert.equal(received.length, before, '版本不满足时不得发请求');
+});
+
+test('Node 18 环境（预加载伪装版本）：AGENT_FEEDBACK_DISABLED=1 时 reason 为 disabled', async () => {
+  const host = makeHost();
+  const before = received.length;
+  const r = await runAsNode18(host, { AGENT_FEEDBACK_DISABLED: '1' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stderr, '');
+  assert.equal(r.stdout, '{"ok":false,"reason":"disabled"}\n');
+  assert.equal(received.length, before);
+});
+
+test('标准输入超过 256 KiB：输出 bad_input，退出码 0，stderr 为空，不发请求', async () => {
+  const host = makeHost();
+  const before = received.length;
+  const child = spawn(process.execPath, [join(host, 'agent-feedback', 'submit.mjs')], {
+    env: { ...process.env, AGENT_FEEDBACK_DISABLED: '' },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (c) => (stdout += c));
+  child.stderr.on('data', (c) => (stderr += c));
+  child.stdin.on('error', () => {}); // 脚本读到上限就不再读，写端可能收到 EPIPE，属预期
+  const closed = new Promise<number | null>((ok) => child.on('close', ok));
+  // 语法上合法的 JSON：只有体积超限这一个问题，放宽上限就会得到别的结果
+  child.stdin.end(JSON.stringify({ ...validInput(), padding: 'x'.repeat(256 * 1024) }));
+  assert.equal(await closed, 0);
+  assert.equal(stderr, '');
+  const out = JSON.parse(stdout.trim()) as { ok: boolean; reason: string };
+  assert.equal(stdout.trim().split('\n').length, 1);
+  assert.deepEqual({ ok: out.ok, reason: out.reason }, { ok: false, reason: 'bad_input' });
+  assert.equal(received.length, before);
+});
+
+// 真实宿主头部样本（test/fixtures/真实宿主skill头部/）：脚本据此补齐 skill.name 与 skill.version。
+const realDir = join(repoRoot, 'test', 'fixtures', '真实宿主skill头部');
+const realCases: [string, { name: string; version?: string } | null][] = [
+  ['SKILL-名称含冒号-块描述-metadata双引号版本.md', { name: 'ak:tech-graph', version: '1.1.1' }],
+  ['SKILL-无metadata-块描述.md', { name: 'freshrss' }],
+  ['SKILL-顶层version-metadata无版本-嵌套列表.md', { name: 'lark-whiteboard' }],
+  ['SKILL-metadata单引号版本.md', { name: 'agentic-principle', version: '0.10.0' }],
+  ['SKILL-无frontmatter.md', null],
+];
+for (const [file, expected] of realCases) {
+  test(`真实宿主头部 ${file}：--dry-run 的 skill 字段`, async () => {
+    const host = makeHost({ skillMd: readFileSync(join(realDir, file), 'utf8') });
+    const before = received.length;
+    const out = await run(host, validInput(), ['--dry-run']);
+    if (expected === null) {
+      assert.deepEqual(out, { ok: false, reason: 'host_unreadable' });
+    } else {
+      assert.equal(out.ok, true, JSON.stringify(out));
+      assert.deepEqual(out.body.skill, expected.version === undefined ? { name: expected.name } : expected, '无 metadata 版本时不带 version');
+    }
+    assert.equal(received.length, before);
+  });
+}
