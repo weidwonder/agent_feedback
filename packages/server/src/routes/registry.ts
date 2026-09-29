@@ -1,4 +1,4 @@
-import { LIMITS, charLength } from '@agent-feedback/shared';
+import { LIMITS, validateSkillName } from '@agent-feedback/shared';
 import type { AppContext } from '../app.ts';
 import { verifyBearer } from '../auth.ts';
 import { findSkillByName, queryOne, run } from '../db.ts';
@@ -52,17 +52,9 @@ export function registerRegistryRoutes(router: Router, ctx: AppContext): void {
       return sendError(res, 400, 'invalid_json', '请求体不是合法的 JSON');
     }
     const rawName = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).name : undefined;
-    const name = typeof rawName === 'string' ? rawName.trim() : '';
-    const len = charLength(name);
-    if (len < LIMITS.skillName.min || len > LIMITS.skillName.max) {
-      return sendError(
-        res,
-        400,
-        'invalid_field',
-        `name 长度不合规，须为 ${LIMITS.skillName.min}–${LIMITS.skillName.max} 字符`,
-        'name',
-      );
-    }
+    const checked = validateSkillName(rawName);
+    if (!checked.ok) return sendError(res, 400, 'invalid_field', checked.message, 'name');
+    const name = checked.value;
     const existing = findSkillByName(db, name);
     if (existing) return sendJson(res, 200, { name, enabled: existing.enabled === 1, created: false });
     const currentName = findOldName(ctx, name);

@@ -1,6 +1,6 @@
 // 时间工具：业务日与到期口径固定北京时间（+08:00），库内时间一律 UTC ISO。
 const BEIJING_OFFSET_MS = 8 * 3600 * 1000;
-const DAY_MS = 86400 * 1000;
+export const DAY_MS = 86400 * 1000;
 
 /** 北京时间自然日 YYYY-MM-DD。 */
 export function beijingDay(d: Date): string {
@@ -50,4 +50,10 @@ export function monthsAgoUtc(now: Date, months: number): string {
 /** 北京时间的小时（0–23）。 */
 export function beijingHour(d: Date): number {
   return new Date(d.getTime() + BEIJING_OFFSET_MS).getUTCHours();
+}
+
+/** 北京时间显示：short 为 `MM-DD HH:mm`，full 为 `YYYY-MM-DD HH:mm`。入参为 UTC ISO 字符串。 */
+export function formatBeijing(iso: string, style: 'short' | 'full'): string {
+  const bj = new Date(new Date(iso).getTime() + BEIJING_OFFSET_MS).toISOString();
+  return `${bj.slice(style === 'short' ? 5 : 0, 10)} ${bj.slice(11, 16)}`;
 }

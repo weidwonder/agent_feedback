@@ -252,7 +252,7 @@ test('遇到第一个错误即返回：顶层字段先于 session 与 items', ()
 test('常量导出：限制、状态、拒收码、显示名、notice', () => {
   assert.equal(LIMITS.maxItems, 5);
   assert.equal(LIMITS.maxRelatedSkills, 10);
-  assert.equal(LIMITS.maxOccurrences, 1000);
+  assert.equal(LIMITS.occurrences.max, 1000);
   assert.equal(LIMITS.maxBodyBytes, 65536);
   assert.deepEqual([...STATUSES], ['pending', 'valid', 'invalid', 'duplicate', 'done']);
   assert.equal(ERROR_CODES.length, 14);

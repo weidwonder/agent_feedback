@@ -123,7 +123,7 @@ describe('删除编号日志', () => {
 });
 
 describe('备份', () => {
-  it('03:00（北京）之后生成可打开的备份，当天不重复，并删除 7 天前的备份', () => {
+  it('03:00（北京）之后生成可打开的备份，当天不重复，并只保留 7 份备份', () => {
     const d = makeTempDir();
     try {
       const db = openDb(d);
@@ -139,14 +139,14 @@ describe('备份', () => {
       copy.close();
       assert.equal(backupIfDue(db, d, now), null, '当天已备份');
 
-      // 8 天前的被删，7 天前（边界）保留
-      writeFileSync(join(backups, 'feedback-20260922.sqlite'), 'old');
-      writeFileSync(join(backups, 'feedback-20260923.sqlite'), 'edge');
+      // 7 天前（含）的被删，6 天前（边界）保留：当天与前 6 天共 7 份
+      writeFileSync(join(backups, 'feedback-20260923.sqlite'), 'old');
+      writeFileSync(join(backups, 'feedback-20260924.sqlite'), 'edge');
       rmSync(made!);
       assert.ok(backupIfDue(db, d, now));
-      assert.equal(existsSync(join(backups, 'feedback-20260922.sqlite')), false);
-      assert.equal(existsSync(join(backups, 'feedback-20260923.sqlite')), true);
-      assert.deepEqual(readdirSync(backups).sort(), ['feedback-20260923.sqlite', 'feedback-20260930.sqlite']);
+      assert.equal(existsSync(join(backups, 'feedback-20260923.sqlite')), false);
+      assert.equal(existsSync(join(backups, 'feedback-20260924.sqlite')), true);
+      assert.deepEqual(readdirSync(backups).sort(), ['feedback-20260924.sqlite', 'feedback-20260930.sqlite']);
       db.close();
     } finally {
       rmSync(d, { recursive: true, force: true });
@@ -159,6 +159,23 @@ describe('备份', () => {
       const db = openDb(d);
       writeFileSync(join(d, 'backups'), 'not a dir'); // 备份目录位置被文件占用
       assert.equal(backupIfDue(db, d, new Date('2026-09-29T19:30:00Z')), null);
+      db.close();
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  it('备份失败当天不再重试，次日再试', () => {
+    const d = makeTempDir();
+    try {
+      const db = openDb(d);
+      writeFileSync(join(d, 'backups'), 'not a dir');
+      assert.equal(backupIfDue(db, d, new Date('2026-09-29T19:30:00Z')), null);
+      rmSync(join(d, 'backups')); // 故障排除后，当天仍不重试
+      assert.equal(backupIfDue(db, d, new Date('2026-09-29T20:30:00Z')), null);
+      assert.equal(existsSync(join(d, 'backups')), false, '当天没有再尝试创建备份目录');
+      const next = backupIfDue(db, d, new Date('2026-09-30T19:30:00Z')); // 北京 10-01 03:30
+      assert.equal(next, join(d, 'backups', 'feedback-20261001.sqlite'));
       db.close();
     } finally {
       rmSync(d, { recursive: true, force: true });

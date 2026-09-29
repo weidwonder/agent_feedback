@@ -1,6 +1,7 @@
 import { FEEDBACK_TYPES, IMPACTS, LABELS, STATUSES } from '@agent-feedback/shared';
 import type { FeedbackView } from '../feedback-query.ts';
 import { parseFeedbackId } from '../feedback-query.ts';
+import { formatBeijing } from '../time.ts';
 import type { RejectionRow, SkillListRow } from './skills.ts';
 
 export function escapeHtml(s: string): string {
@@ -13,18 +14,6 @@ export function escapeHtml(s: string): string {
 }
 
 const e = escapeHtml;
-
-/** 北京时间 `MM-DD HH:mm`。 */
-export function formatShort(iso: string): string {
-  const bj = new Date(new Date(iso).getTime() + 8 * 3600 * 1000).toISOString();
-  return `${bj.slice(5, 10)} ${bj.slice(11, 16)}`;
-}
-
-/** 北京时间 `YYYY-MM-DD HH:mm`。 */
-export function formatFull(iso: string): string {
-  const bj = new Date(new Date(iso).getTime() + 8 * 3600 * 1000).toISOString();
-  return `${bj.slice(0, 10)} ${bj.slice(11, 16)}`;
-}
 
 const CSS = `
 *{box-sizing:border-box}
@@ -86,6 +75,10 @@ function layout(title: string, active: NavKey, body: string): string {
 
 const flashBox = (msg: string | null, isError = false): string =>
   msg ? `<div class="flash${isError ? ' error' : ''}">${e(msg)}</div>` : '';
+
+export function notFoundPage(): string {
+  return layout('页面不存在', 'feedback', '<div class="card"><h2>页面不存在</h2><p><a href="/admin/feedback">返回反馈列表</a></p></div>');
+}
 
 export function loginPage(error: string | null): string {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -160,7 +153,7 @@ export function feedbackListPage(d: ListPageData): string {
         const num = parseFeedbackId(it.id) ?? 0;
         return `<tr><td><a href="/admin/feedback/${num}">${e(it.id)}</a></td><td>${e(it.title)}</td><td>${e(it.submission.skill.name)}</td>
 <td>${e(LABELS.type[it.type])}</td><td><span class="badge ${it.impact}">${e(LABELS.impact[it.impact])}</span></td>
-<td><span class="badge ${it.status}">${e(LABELS.status[it.status])}</span></td><td>${it.resolved ? '是' : '否'}</td><td>${e(formatShort(it.receivedAt))}</td></tr>`;
+<td><span class="badge ${it.status}">${e(LABELS.status[it.status])}</span></td><td>${it.resolved ? '是' : '否'}</td><td>${e(formatBeijing(it.receivedAt, 'short'))}</td></tr>`;
       })
       .join('');
     table = `<table><thead><tr><th>编号</th><th>标题</th><th>Skill</th><th>类型</th><th>影响</th><th>状态</th><th>已解决</th><th>收录时间</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -199,7 +192,7 @@ export function feedbackDetailPage(item: FeedbackView, siblings: string[], flash
 <p class="row"><span class="badge">${e(LABELS.type[item.type])}</span><span class="badge ${item.impact}">${e(LABELS.impact[item.impact])}</span><span class="badge ${item.status}">${e(LABELS.status[item.status])}</span></p>
 <dl class="kv"><dt>详细描述</dt><dd class="text">${e(item.description)}</dd>
 <dt>推荐解法</dt><dd class="text">${item.resolved && item.suggestedFix ? e(item.suggestedFix) : '未解决，无'}</dd>
-<dt>本会话出现次数</dt><dd>${item.occurrences}</dd><dt>收录时间</dt><dd>${e(formatFull(item.receivedAt))}</dd></dl></div>
+<dt>本会话出现次数</dt><dd>${item.occurrences}</dd><dt>收录时间</dt><dd>${e(formatBeijing(item.receivedAt, 'full'))}</dd></dl></div>
 <div class="card"><h3>会话信息</h3>
 <dl class="kv"><dt>Skill</dt><dd>${e(version(s.skill.name, s.skill.version))}</dd>
 <dt>反馈模块版本</dt><dd>${e(s.moduleVersion)}</dd>
@@ -238,7 +231,7 @@ export function skillsPage(d: SkillsPageData): string {
       const value = d.renameTarget?.id === k.id ? d.renameTarget.value : k.name;
       const row = `<tr><td>${e(k.name)} <a class="small" href="#rename-${k.id}">改名</a></td>
 <td><form method="post" action="/admin/skills/${k.id}/toggle" class="row"><span class="badge${k.enabled ? ' valid' : ' off'}">${k.enabled ? '收录中' : '已停用'}</span><button class="secondary" type="submit">${k.enabled ? '停用' : '启用'}</button></form></td>
-<td>${e(formatFull(k.createdAt).slice(0, 10))}</td><td>${k.recentCount}</td><td>${dist}</td></tr>`;
+<td>${e(formatBeijing(k.createdAt, 'full').slice(0, 10))}</td><td>${k.recentCount}</td><td>${dist}</td></tr>`;
       dialogs.push(`<div class="dialog" id="rename-${k.id}"><div class="box"><h3>改名：${e(k.name)}</h3>
 <p class="muted">须与宿主 skill 自己声明的名称完全一致。</p>
 <p>改名后，${e(k.name)} 的 ${k.feedbackTotal} 条历史反馈都会归到新名称下；仍以旧名称提交的反馈将不再收录。</p>
@@ -279,8 +272,8 @@ const KIND_LABEL: Record<string, string> = { query: '查询令牌', registry: '�
 export function settingsPage(tokens: TokenListRow[], flash: string | null, error: string | null): string {
   const rows = tokens
     .map(
-      (t) => `<tr><td>${e(t.name)}</td><td>${e(KIND_LABEL[t.kind] ?? t.kind)}</td><td>${e(formatFull(t.createdAt))}</td>
-<td>${t.lastUsedAt ? e(formatFull(t.lastUsedAt)) : '从未使用'}</td>
+      (t) => `<tr><td>${e(t.name)}</td><td>${e(KIND_LABEL[t.kind] ?? t.kind)}</td><td>${e(formatBeijing(t.createdAt, 'full'))}</td>
+<td>${t.lastUsedAt ? e(formatBeijing(t.lastUsedAt, 'full')) : '从未使用'}</td>
 <td>${t.revokedAt ? '<span class="badge off">已撤销</span>' : `<form method="post" action="/admin/tokens/${t.id}/revoke"><button class="secondary" type="submit">撤销</button></form>`}</td></tr>`,
     )
     .join('');

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { LIMITS, charLength } from '@agent-feedback/shared';
+import { validateSkillName } from '@agent-feedback/shared';
 import { queryAll, queryOne, run, withTransaction } from '../db.ts';
-import { beijingDay } from '../time.ts';
+import { DAY_MS, beijingDay, beijingDateRangeToUtc } from '../time.ts';
 
 export interface SkillListRow {
   id: number;
@@ -20,11 +20,12 @@ export interface RejectionRow {
   invalid: number;
 }
 
-const DAY_MS = 86400 * 1000;
-
-/** 登记页列表：近 7 天收录数与模块版本分布均按提交（一次提交算一次收录）统计。 */
+/**
+ * 登记页列表：近 7 天收录数为近 7 个北京自然日（含今天）内的提交数；
+ * 模块版本分布为保留期内全部提交的分布。均按提交（一次提交算一次收录）统计。
+ */
 export function listSkills(db: DatabaseSync, now: Date): SkillListRow[] {
-  const cutoff = new Date(now.getTime() - 7 * DAY_MS).toISOString();
+  const recentFrom = beijingDateRangeToUtc(beijingDay(new Date(now.getTime() - 6 * DAY_MS))).fromIso!;
   const skills = queryAll<{ id: number; name: string; enabled: number; created_at: string; feedback_total: number }>(
     db,
     `SELECT k.id, k.name, k.enabled, k.created_at,
@@ -33,9 +34,13 @@ export function listSkills(db: DatabaseSync, now: Date): SkillListRow[] {
   );
   const dist = queryAll<{ skill_id: number; module_version: string; n: number }>(
     db,
-    `SELECT skill_id, module_version, COUNT(*) AS n FROM submissions WHERE received_at >= ?
+    `SELECT skill_id, module_version, COUNT(*) AS n FROM submissions
      GROUP BY skill_id, module_version ORDER BY n DESC, module_version DESC`,
-    cutoff,
+  );
+  const recent = queryAll<{ skill_id: number; n: number }>(
+    db,
+    'SELECT skill_id, COUNT(*) AS n FROM submissions WHERE received_at >= ? GROUP BY skill_id',
+    recentFrom,
   );
   return skills.map((k) => {
     const versions = dist.filter((d) => d.skill_id === k.id).map((d) => ({ moduleVersion: d.module_version, count: d.n }));
@@ -45,7 +50,7 @@ export function listSkills(db: DatabaseSync, now: Date): SkillListRow[] {
       enabled: k.enabled === 1,
       createdAt: k.created_at,
       feedbackTotal: k.feedback_total,
-      recentCount: versions.reduce((sum, v) => sum + v.count, 0),
+      recentCount: recent.find((r) => r.skill_id === k.id)?.n ?? 0,
       versions,
     };
   });
@@ -78,11 +83,9 @@ export type RenameResult = { ok: true; name: string } | { ok: false; message: st
  * 事务内把原名写入旧名表并更新现名；若新名恰是本 skill 自己的旧名，则从旧名表移除。
  */
 export function renameSkill(db: DatabaseSync, id: number, rawName: string, now: Date): RenameResult {
-  const name = rawName.trim();
-  const len = charLength(name);
-  if (len < LIMITS.skillName.min || len > LIMITS.skillName.max) {
-    return { ok: false, message: `名称长度不合规，须为 ${LIMITS.skillName.min}–${LIMITS.skillName.max} 个字符` };
-  }
+  const checked = validateSkillName(rawName);
+  if (!checked.ok) return checked;
+  const name = checked.value;
   return withTransaction(db, (): RenameResult => {
     const current = queryOne<{ name: string }>(db, 'SELECT name FROM skills WHERE id = ?', id);
     if (!current) return { ok: false, message: '该 skill 不存在', notFound: true };

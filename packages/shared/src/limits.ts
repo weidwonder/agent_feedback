@@ -19,7 +19,6 @@ export const LIMITS = {
   minItems: 1,
   maxItems: 5,
   maxRelatedSkills: 10,
-  maxOccurrences: 1000,
   maxBodyBytes: 65536,
 } as const;
 

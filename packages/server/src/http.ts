@@ -23,9 +23,11 @@ interface Route {
 }
 
 function matchSegments(pattern: string[], actual: string[]): Record<string, string> | null {
-  if (pattern.length !== actual.length) return null;
+  // 末段为 `*` 时匹配其后任意多段（至少一段），须注册在具体路由之后。
+  const wildcard = pattern[pattern.length - 1] === '*';
+  if (wildcard ? actual.length < pattern.length : pattern.length !== actual.length) return null;
   const params: Record<string, string> = {};
-  for (let i = 0; i < pattern.length; i++) {
+  for (let i = 0; i < pattern.length - (wildcard ? 1 : 0); i++) {
     const p = pattern[i]!;
     const a = actual[i]!;
     if (p.startsWith(':')) {

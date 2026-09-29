@@ -3,18 +3,29 @@ import { FEEDBACK_TYPES, IMPACTS, LABELS, STATUSES, charLength } from '@agent-fe
 import type { Status } from '@agent-feedback/shared';
 import type { FeedbackFilters } from '../feedback-query.ts';
 import type { AppContext } from '../app.ts';
-import { createSession, createToken, destroySession, getSession, hashPassword, verifyPassword } from '../auth.ts';
+import {
+  DUMMY_PASSWORD_HASH,
+  MIN_PASSWORD_LENGTH,
+  SESSION_TTL_MS,
+  createSession,
+  createToken,
+  destroySession,
+  getSession,
+  hashPassword,
+  verifyPassword,
+} from '../auth.ts';
 import { bumpCounter, getCounter } from '../counters.ts';
 import { deleteFeedback } from '../deletions.ts';
 import { queryAll, queryOne, run } from '../db.ts';
 import { formatFeedbackId, getFeedback, listFeedback, parseFeedbackId, setStatus } from '../feedback-query.ts';
 import { clientIp, log, parseCookies, readBody } from '../http.ts';
 import type { Handler, Router } from '../http.ts';
-import { beijingDay, isValidDay, monthsAgoUtc } from '../time.ts';
+import { DAY_MS, beijingDay, isValidDay, monthsAgoUtc } from '../time.ts';
 import {
   feedbackDetailPage,
   feedbackListPage,
   loginPage,
+  notFoundPage,
   settingsPage,
   skillsPage,
   tokenCreatedPage,
@@ -23,12 +34,10 @@ import type { ListForm, TokenListRow } from './views.ts';
 import { listSkills, recentRejections, renameSkill, toggleSkill } from './skills.ts';
 
 const SESSION_COOKIE = 'af_session';
-const SESSION_MAX_AGE_S = 7 * 24 * 3600;
+const SESSION_MAX_AGE_S = SESSION_TTL_MS / 1000;
 const LOGIN_FAIL_LIMIT = 20;
 const PAGE_SIZE = 20;
-const MIN_PASSWORD_LENGTH = 12;
 const FORM_MAX_BYTES = 64 * 1024;
-const DAY_MS = 86400 * 1000;
 
 const SECURITY_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
@@ -76,7 +85,7 @@ function sameOrigin(req: IncomingMessage): boolean {
 }
 
 function sessionCookie(value: string, maxAge: number, secure: boolean): string {
-  return `${SESSION_COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+  return `${SESSION_COOKIE}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
 }
 
 const text = (form: Record<string, string>, key: string): string => form[key] ?? '';
@@ -177,7 +186,9 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
         return sendHtml(res, 429, loginPage('今天登录失败次数过多，请明天再试'));
       }
       const admin = queryOne<AdminRow>(db, 'SELECT username, password_hash FROM admin WHERE id = 1');
-      const ok = admin !== null && text(form, 'username') === admin.username && verifyPassword(text(form, 'password'), admin.password_hash);
+      // 无论用户名对错都跑一次 scrypt，再合并判断，避免时序泄露用户名。
+      const passwordOk = verifyPassword(text(form, 'password'), admin?.password_hash ?? DUMMY_PASSWORD_HASH);
+      const ok = admin !== null && text(form, 'username') === admin.username && passwordOk;
       if (!ok) {
         bumpCounter(db, day, scope);
         log('login_failed', { ip });
@@ -257,7 +268,7 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
 
   router.post(
     '/admin/feedback/:id/delete',
-    guarded(async (req, res, params) => {
+    guarded((_req, res, params) => {
       const id = parseFeedbackId(params.id!);
       if (id === null || !deleteFeedback(db, ctx.dataDir, id)) return notFound(res);
       redirect(res, 303, `/admin/feedback?status=all&range=6m&deleted=${formatFeedbackId(id)}`);
@@ -292,13 +303,13 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
     }),
   );
 
-  const skillIdOf = (params: Record<string, string>): number | null =>
+  const numericId = (params: Record<string, string>): number | null =>
     /^\d{1,15}$/.test(params.id!) ? Number(params.id) : null;
 
   router.post(
     '/admin/skills/:id/toggle',
     guarded((_req, res, params) => {
-      const id = skillIdOf(params);
+      const id = numericId(params);
       if (id === null || !toggleSkill(db, id)) return renderSkills(res, 404, { error: '该 skill 不存在' });
       redirect(res, 303, '/admin/skills');
     }),
@@ -309,7 +320,7 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
     guarded(async (req, res, params) => {
       const form = await formOr413(req, res);
       if (form === null) return;
-      const id = skillIdOf(params);
+      const id = numericId(params);
       if (id === null) return renderSkills(res, 404, { error: '该 skill 不存在' });
       const result = renameSkill(db, id, text(form, 'name'), ctx.now());
       if (!result.ok) {
@@ -367,7 +378,7 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
   router.post(
     '/admin/tokens/:id/revoke',
     guarded((_req, res, params) => {
-      const id = skillIdOf(params);
+      const id = numericId(params);
       const changed =
         id === null ? 0 : run(db, 'UPDATE tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', ctx.now().toISOString(), id);
       if (changed === 0) return sendHtml(res, 404, settingsPage(listTokens(), null, '令牌不存在或已撤销'));
@@ -396,4 +407,10 @@ export function registerAdminRoutes(router: Router, ctx: AppContext): void {
       });
     }),
   );
+
+  // ---------- 未知 /admin/* 路径（须最后注册） ----------
+
+  const unknownAdminPath = guarded((_req, res) => sendHtml(res, 404, notFoundPage()));
+  router.get('/admin/*', unknownAdminPath);
+  router.post('/admin/*', unknownAdminPath);
 }

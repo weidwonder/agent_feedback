@@ -48,7 +48,7 @@ function parseFilters(url: URL, skill: string): FeedbackFilters {
   const resolved = pickEnum(url, 'resolved', ['true', 'false'] as const);
   const filters: FeedbackFilters = {
     skill,
-    limit: pickInt(url, 'limit', 50, 1, 200),
+    limit: pickInt(url, 'limit', 20, 1, 50),
     offset: pickInt(url, 'offset', 0, 0, Number.MAX_SAFE_INTEGER),
   };
   const type = pickEnum<FeedbackType>(url, 'type', FEEDBACK_TYPES);
@@ -71,6 +71,9 @@ function parseFilters(url: URL, skill: string): FeedbackFilters {
   return filters;
 }
 
+/** 每条反馈自带不可信标注，防止单条被摘出后丢失警示。 */
+const withNotice = <T extends object>(item: T): T & { notice: string } => ({ ...item, notice: NOTICE });
+
 // 查询通道（查询令牌）：取清单、取详情、改状态。
 export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void {
   const { db } = ctx;
@@ -88,7 +91,7 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
       throw err;
     }
     const { total, items } = listFeedback(db, filters);
-    sendJson(res, 200, { notice: NOTICE, total, items });
+    sendJson(res, 200, { notice: NOTICE, total, items: items.map(withNotice) });
   });
 
   router.get('/v1/feedback/:id', (req, res, params) => {
@@ -97,7 +100,7 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
     const id = parseFeedbackId(params.id!);
     const found = id === null ? null : getFeedback(db, id);
     if (!found) return sendError(res, 404, 'not_found', `反馈 ${params.id} 不存在`);
-    sendJson(res, 200, { notice: NOTICE, item: found.item, siblings: found.siblings });
+    sendJson(res, 200, { notice: NOTICE, item: withNotice(found.item), siblings: found.siblings });
   });
 
   router.patch('/v1/feedback/:id', async (req, res, params) => {
@@ -123,6 +126,6 @@ export function registerFeedbackApiRoutes(router: Router, ctx: AppContext): void
     const id = parseFeedbackId(params.id!);
     const item = id === null ? null : setStatus(db, id, status as Status, ctx.now());
     if (!item) return sendError(res, 404, 'not_found', `反馈 ${params.id} 不存在`);
-    sendJson(res, 200, { notice: NOTICE, item });
+    sendJson(res, 200, { notice: NOTICE, item: withNotice(item) });
   });
 }

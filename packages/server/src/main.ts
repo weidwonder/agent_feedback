@@ -2,14 +2,13 @@ import { createServer } from 'node:http';
 import { emitKeypressEvents } from 'node:readline';
 import { createApp } from './app.ts';
 import type { AppContext } from './app.ts';
-import { setAdmin } from './auth.ts';
+import { MIN_PASSWORD_LENGTH, setAdmin } from './auth.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { log } from './http.ts';
 import { runMaintenance, startJobs } from './jobs.ts';
 import { charLength } from '@agent-feedback/shared';
 
-const MIN_PASSWORD_CHARS = 12;
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -66,7 +65,7 @@ async function cmdSetAdmin(args: string[]): Promise<void> {
   if (!username) fail('用法：server.mjs set-admin <用户名>（密码从标准输入读取）');
   const config = loadConfig(process.env);
   const password = await readPassword();
-  if (charLength(password) < MIN_PASSWORD_CHARS) fail(`密码至少 ${MIN_PASSWORD_CHARS} 个字符`);
+  if (charLength(password) < MIN_PASSWORD_LENGTH) fail(`密码至少 ${MIN_PASSWORD_LENGTH} 个字符`);
   const db = openDb(config.dataDir);
   setAdmin(db, username, password, new Date());
   db.close();

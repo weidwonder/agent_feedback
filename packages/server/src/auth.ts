@@ -5,7 +5,8 @@ import { queryOne, run } from './db.ts';
 
 export type TokenKind = 'query' | 'registry';
 
-const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
+export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000;
+export const MIN_PASSWORD_LENGTH = 12;
 const PREFIX: Record<TokenKind, string> = { query: 'afq_', registry: 'afr_' };
 
 const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
@@ -71,6 +72,9 @@ export function hashPassword(pw: string): string {
   const hash = scryptSync(pw, salt, 64, { N: 16384, r: 8, p: 1 });
   return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
 }
+
+/** 用户名不存在时也要跑一次 scrypt，避免响应时间泄露用户名是否正确。 */
+export const DUMMY_PASSWORD_HASH = hashPassword('dummy-password-for-timing');
 
 export function verifyPassword(pw: string, stored: string): boolean {
   const parts = stored.split('$');

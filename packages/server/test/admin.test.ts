@@ -81,6 +81,7 @@ describe('管理界面', () => {
     const setCookie = ok.headers.get('set-cookie')!;
     assert.match(setCookie, /^af_session=[\w-]{43};/);
     assert.match(setCookie, /HttpOnly/);
+    assert.match(setCookie, /SameSite=Strict/);
     assert.doesNotMatch(setCookie, /Secure/);
     const c = cookieOf(ok);
     assert.equal((await call('/admin/feedback', { cookie: c })).status, 200);

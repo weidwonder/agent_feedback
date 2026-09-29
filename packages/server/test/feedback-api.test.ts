@@ -47,6 +47,23 @@ describe('查询通道与 healthz', () => {
     const all = await get('?skill=sk');
     assert.equal(all.body.notice, NOTICE);
     assert.deepEqual(titles(all.body), ['C', 'B2', 'B', 'A']);
+    assert.ok(all.body.items.every((i) => (i as { notice?: string }).notice === NOTICE), '每条反馈都带 notice');
+  });
+
+  it('清单 limit 默认 20、上限 50', async () => {
+    const big = await startTestServer();
+    try {
+      const token = makeToken(big.db, 'query');
+      for (let i = 0; i < 25; i++) seedSubmission(big.db, { skill: 'many', items: [{ title: `T${i}` }] });
+      const list = async (qs: string) =>
+        (await (await fetch(`${big.baseUrl}/v1/feedback?skill=many${qs}`, { headers: bearer(token) })).json()) as ListBody;
+      const def = await list('');
+      assert.equal(def.items.length, 20);
+      assert.equal(def.total, 25);
+      assert.equal((await list('&limit=50')).items.length, 25);
+    } finally {
+      await big.close();
+    }
   });
 
   it('9 个筛选字段各自生效', async () => {
@@ -76,7 +93,7 @@ describe('查询通道与 healthz', () => {
   it('非法筛选取值 400 invalid_field 并指出字段', async () => {
     for (const [qs, field] of [
       ['type=nope', 'type'], ['impact=x', 'impact'], ['status=all', 'status'], ['resolved=1', 'resolved'],
-      ['from=2026-13-01', 'from'], ['to=abc', 'to'], ['limit=0', 'limit'], ['limit=201', 'limit'], ['offset=-1', 'offset'],
+      ['from=2026-13-01', 'from'], ['to=abc', 'to'], ['limit=0', 'limit'], ['limit=51', 'limit'], ['offset=-1', 'offset'],
     ] as const) {
       const r = await get(`?skill=sk&${qs}`);
       assert.equal(r.status, 400, qs);
@@ -90,6 +107,7 @@ describe('查询通道与 healthz', () => {
     assert.equal(byNum.status, 200);
     const body = (await byNum.json()) as { notice: string; item: { id: string; title: string }; siblings: string[] };
     assert.equal(body.notice, NOTICE);
+    assert.equal((body.item as { notice?: string }).notice, NOTICE);
     assert.equal(body.item.title, 'B');
     assert.equal(body.siblings.length, 1);
     const byFb = await fetch(`${s.baseUrl}/v1/feedback/${body.item.id}`, { headers: bearer(q) });
@@ -108,7 +126,10 @@ describe('查询通道与 healthz', () => {
     for (let i = 0; i < 2; i++) {
       const res = await patch(ids.a!, { status: 'valid' });
       assert.equal(res.status, 200);
-      assert.equal(((await res.json()) as { item: { status: string } }).item.status, 'valid');
+      const body = (await res.json()) as { notice: string; item: { status: string; notice?: string } };
+      assert.equal(body.item.status, 'valid');
+      assert.equal(body.notice, NOTICE);
+      assert.equal(body.item.notice, NOTICE);
     }
     assert.equal((await get('?skill=sk&status=valid')).body.items[0]?.title, 'A');
     const bad = await patch(ids.a!, { status: 'closed' });
