@@ -160,14 +160,14 @@ CREATE TABLE IF NOT EXISTS skills (
 CREATE TABLE IF NOT EXISTS skill_old_names (
   name TEXT PRIMARY KEY, skill_id INTEGER NOT NULL REFERENCES skills(id), renamed_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (
-  id INTEGER PRIMARY KEY, skill_id INTEGER NOT NULL REFERENCES skills(id),
+  id INTEGER PRIMARY KEY AUTOINCREMENT, skill_id INTEGER NOT NULL REFERENCES skills(id),
   skill_version TEXT, module_version TEXT NOT NULL, session_id TEXT NOT NULL,
   task_summary TEXT NOT NULL, user_info TEXT NOT NULL, user_info_source TEXT NOT NULL,
   os TEXT NOT NULL, agent_name TEXT NOT NULL, agent_version TEXT,
   harness_name TEXT NOT NULL, harness_version TEXT, related_skills TEXT NOT NULL,
   submitted_at TEXT NOT NULL, received_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS feedback (
-  id INTEGER PRIMARY KEY, submission_id INTEGER NOT NULL REFERENCES submissions(id),
+  id INTEGER PRIMARY KEY AUTOINCREMENT, submission_id INTEGER NOT NULL REFERENCES submissions(id),
   title TEXT NOT NULL, description TEXT NOT NULL, type TEXT NOT NULL, impact TEXT NOT NULL,
   resolved INTEGER NOT NULL, suggested_fix TEXT, occurrences INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending', status_updated_at TEXT);
@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 - 相关 skill 以 JSON 字符串存。
 - 稳定标识：skill 以 `id` 为稳定标识，名称可改；反馈以 `id` 为稳定标识。skill 名称区分大小写、不做归一化（与宿主声明逐字一致）。
 - 删除编号日志：`<DATA_DIR>/deleted-ids.log`，每行一个十进制 id，只追加。它 MUST 在数据库文件之外，备份不含它。
+- submissions 与 feedback 主键用 `AUTOINCREMENT`，编号永不复用；应用删除编号日志时 MUST 把 feedback 的自增序号抬到日志最大编号之上，防止从旧备份恢复后新反馈复用已删编号被误删。
 
 ### 2.3 注入工具本机配置
 
