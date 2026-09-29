@@ -27,7 +27,7 @@ before(async () => {
     join(repoRoot, 'node_modules', '.bin', 'esbuild'),
     [
       join(moduleRoot, 'src', 'submit.ts'),
-      '--bundle', '--platform=node', '--format=esm', '--target=node18',
+      '--bundle', '--platform=node', '--format=esm', '--target=node20',
       `--outfile=${bundle}`,
     ],
     { encoding: 'utf8' },
@@ -191,7 +191,7 @@ test('服务拒收输出 rejected 并透传 status、code、message、field', as
   const saved = respond;
   respond = (res) => {
     res.writeHead(403, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ code: 'skill_not_registered', message: '未登记', field: 'skill.name' }));
+    res.end(JSON.stringify({ error: { code: 'skill_not_registered', message: '未登记', field: 'skill.name' } }));
   };
   try {
     const out = await run(makeHost(), validInput());
@@ -200,6 +200,7 @@ test('服务拒收输出 rejected 并透传 status、code、message、field', as
     assert.equal(out.status, 403);
     assert.equal(out.code, 'skill_not_registered');
     assert.equal(out.field, 'skill.name');
+    assert.equal(out.message, '未登记');
     assert.match(out.sessionId, /^s-/);
   } finally {
     respond = saved;

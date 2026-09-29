@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -265,6 +265,25 @@ describe('端到端：从部署到维护 agent 读回反馈', () => {
     for (const id of out.feedbackIds) assert.match(id, /^FB-\d{4,}$/);
     assert.equal(out.sessionId, sessionId);
     feedbackIds = out.feedbackIds;
+  });
+
+  it('6b. 未登记的 skill 提交被拒收：输出 rejected 与 skill_not_registered，退出码 0，stderr 为空', async () => {
+    const otherHost = join(tmpRoot, 'host-unregistered');
+    mkdirSync(join(otherHost, 'agent-feedback'), { recursive: true });
+    writeFileSync(join(otherHost, 'SKILL.md'), '---\nname: e2e-unregistered\ndescription: 未登记\n---\n# x\n');
+    copyFileSync(join(hostDir, 'agent-feedback', 'submit.mjs'), join(otherHost, 'agent-feedback', 'submit.mjs'));
+    copyFileSync(join(hostDir, 'agent-feedback', 'config.json'), join(otherHost, 'agent-feedback', 'config.json'));
+    const input = {
+      session: { taskSummary: '拒收演示', userInfo: '测试工程师', userInfoSource: 'known', agentName: 'e2e-agent', harnessName: 'e2e-harness', relatedSkills: [] },
+      items: [{ title: '未登记 skill 的问题', description: '这个 skill 没有登记，服务应拒收。', type: 'bug', impact: 'minor', resolved: false, occurrences: 1 }],
+    };
+    const r = await run(process.execPath, ['agent-feedback/submit.mjs'], { cwd: otherHost, input: JSON.stringify(input) });
+    assert.equal(r.status, 0);
+    assert.equal(r.stderr, '');
+    const out = JSON.parse(r.stdout) as { ok: boolean; reason: string; code: string };
+    assert.equal(out.ok, false, r.stdout);
+    assert.equal(out.reason, 'rejected');
+    assert.equal(out.code, 'skill_not_registered');
   });
 
   it('7. 查询令牌按 skill 读回 3 条，会话信息与提交一致', async () => {

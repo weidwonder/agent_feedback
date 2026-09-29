@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultConfigPath, normalizeEndpoint, readConfig, writeConfig } from './config.ts';
 import { InjectError, inject } from './inject.ts';
 
-const USAGE = '用法：\n  agent-feedback config --endpoint <地址>   （登记令牌从标准输入读取）\n  agent-feedback inject <skill 源头目录>';
+const USAGE = '用法：\n  node packages/injector/dist/agent-feedback.mjs config --endpoint <地址>   （登记令牌从标准输入读取）\n  node packages/injector/dist/agent-feedback.mjs inject <skill 源头目录>';
 
 class UsageError extends Error {}
 

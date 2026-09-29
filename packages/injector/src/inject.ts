@@ -52,7 +52,7 @@ function readModuleVersion(moduleDir: string): string {
 export async function inject(opts: InjectOptions): Promise<InjectResult> {
   const { dir, cfg, moduleDir: src } = opts;
   if (!cfg.endpoint || !cfg.registryToken) {
-    throw new InjectError('未配置实例：先运行 agent-feedback config --endpoint <地址>');
+    throw new InjectError('未配置实例：先运行 node packages/injector/dist/agent-feedback.mjs config --endpoint <地址>');
   }
   const client = { endpoint: cfg.endpoint, registryToken: cfg.registryToken };
 

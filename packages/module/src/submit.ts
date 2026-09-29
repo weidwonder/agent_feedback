@@ -6,6 +6,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter, validateSubmission } from '@agent-feedback/shared';
 
+// 提交脚本不得写标准错误：吞掉 Node 的运行时告警。
+process.removeAllListeners('warning');
+process.on('warning', () => {});
+
 const MAX_STDIN_BYTES = 256 * 1024;
 const TIMEOUT_MS = 10_000;
 
@@ -134,13 +138,14 @@ async function main(): Promise<void> {
   if (res.status === 201) {
     emit({ ok: true, submissionId: json.submissionId, feedbackIds: json.feedbackIds, sessionId });
   } else {
+    const err = isRecord(json.error) ? json.error : {};
     emit({
       ok: false,
       reason: 'rejected',
       status: res.status,
-      code: json.code,
-      message: json.message,
-      field: json.field,
+      code: err.code,
+      message: err.message,
+      field: err.field,
       sessionId,
     });
   }

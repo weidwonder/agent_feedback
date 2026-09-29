@@ -36,10 +36,10 @@ export function readConfig(path: string): InjectorConfig {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`本机配置 ${path} 不是合法 JSON；请重新运行 agent-feedback config`);
+    throw new Error(`本机配置 ${path} 不是合法 JSON；请重新运行 node packages/injector/dist/agent-feedback.mjs config`);
   }
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-    throw new Error(`本机配置 ${path} 格式不对；请重新运行 agent-feedback config`);
+    throw new Error(`本机配置 ${path} 格式不对；请重新运行 node packages/injector/dist/agent-feedback.mjs config`);
   }
   const o = data as Record<string, unknown>;
   const cfg: InjectorConfig = {};

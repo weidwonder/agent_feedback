@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agent-feedback/shared": "1.0.0"
+    "@agent-feedback/shared": "*"
   },
   "scripts": {
     "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/agent-feedback.mjs"

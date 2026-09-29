@@ -5,6 +5,6 @@
   "type": "module",
   "dependencies": { "@agent-feedback/shared": "*" },
   "scripts": {
-    "build": "esbuild src/submit.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/submit.mjs"
+    "build": "esbuild src/submit.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/submit.mjs"
   }
 }
