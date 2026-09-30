@@ -39,4 +39,6 @@ test('值后的 YAML 行尾注释不算值；引号内与非空白后的 # 属�
   const inQuotes = "---\nname: a\nmetadata:\n  version: '1.2 # x' # c\n---\n";
   assert.deepEqual(parseFrontmatter(inQuotes), { name: 'a', version: '1.2 # x' });
   assert.deepEqual(parseFrontmatter('---\nname: a\nmetadata:\n  version: # 未定\n---\n'), { name: 'a' });
+  assert.deepEqual(parseFrontmatter('---\nname: "a" # 注释\nmetadata:\n  version: 1.0\t# 制表符后的注释\n---\n'), { name: 'a', version: '1.0' });
+  assert.deepEqual(parseFrontmatter('---\nname: a\nmetadata:\n  version: "abc\n---\n'), { name: 'a', version: '"abc' });
 });

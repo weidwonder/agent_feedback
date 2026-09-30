@@ -1,5 +1,5 @@
 // 解析 SKILL.md 头部 frontmatter：只认顶层 name 与 metadata 下的 version（spec §4.3）。
-// 按 YAML 标量规则取值：引号内原样保留；引号外"行首或空白后的 #"起为注释。
+// 按 YAML 标量规则取值：引号内原样保留（不支持 '' 与 \" 转义）；引号外"行首或空白后的 #"起为注释。
 function unquote(v: string): string {
   const s = v.trim();
   if (s[0] === '"' || s[0] === "'") {
