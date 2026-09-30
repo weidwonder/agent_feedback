@@ -55,6 +55,25 @@ authority_refs:
 7. 验证：`curl -s https://<域名>/healthz` 输出 `ok`；外部可用性探测服务指向这个地址。
 8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。把查询令牌交给维护 agent 时，同时把 `docs/query-api.md` 交给它：处理规则与用法口径在该文件里。
 
+## 现网实例
+
+| 项 | 值 |
+|---|---|
+| 服务地址 | `https://fb.weid.fun`（注入工具 `config --endpoint` 填这个；它会写进每个注入的 skill，更换要重新注入） |
+| 主机 | 维护者的国内 VPS（Alibaba Cloud Linux 3），运维入口 `ssh root@10.14.0.1` |
+| 运行时 | 独立 Node 22 装在 `/opt/agent-feedback/node/`，只供本服务使用；系统自带的 `/usr/bin/node`（v20）由主机上其他服务使用，MUST NOT 为本服务升级 |
+| 程序 | 只部署构建产物 `/opt/agent-feedback/server.mjs`（本机 `npm run build` 后上传），服务器上没有源码与依赖 |
+| systemd 单元 | `/etc/systemd/system/agent-feedback.service`：由仓库里的单元改写 `ExecStart` 为上面两条路径，其余不变 |
+| 数据目录 | `/var/lib/agent-feedback`，属主 `agent-feedback`，权限 700 |
+| 反向代理 | 主机已有的 nginx，站点配置 `/etc/nginx/conf.d/fb.weid.fun.conf`；访问日志关闭；改动后先 `nginx -t` 再 `systemctl reload nginx`，同机还有其他站点 |
+| 证书 | acme.sh（webroot `/var/www/acme-challenge`，ec-256），安装到 `/etc/ssl/fb.weid.fun/`，续期由 root 的 acme.sh 每日 cron 完成并自动 reload nginx |
+
+升级：本机 `npm run build -w @agent-feedback/server` → 把 `packages/server/dist/server.mjs` 上传覆盖 `/opt/agent-feedback/server.mjs` → `systemctl restart agent-feedback` → `curl -s https://fb.weid.fun/healthz`。
+
+Node 安装包 MUST 以 `nodejs.org/dist/<版本>/SHASUMS256.txt` 核对校验和后再解压；国内镜像曾返回错误页冒充安装包。
+
+主机出站流量经透明代理，连 Let's Encrypt 的 TLS 连接约半数失败，证书签发与续期可能因此失败。首次签发用的是只对该条命令生效的 curl 包装（`--interface eth0` 直连 Let's Encrypt）。续期失败时同样处理，或在代理规则里把 `acme-v02.api.letsencrypt.org` 设为直连。
+
 ## 数据目录布局
 
 | 路径 | 内容 |
