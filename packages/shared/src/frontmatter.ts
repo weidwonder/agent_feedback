@@ -1,10 +1,12 @@
 // 解析 SKILL.md 头部 frontmatter：只认顶层 name 与 metadata 下的 version（spec §4.3）。
+// 按 YAML 标量规则取值：引号内原样保留（不支持 '' 与 \" 转义）；引号外"行首或空白后的 #"起为注释。
 function unquote(v: string): string {
   const s = v.trim();
-  if (s.length >= 2 && (s[0] === '"' || s[0] === "'") && s[s.length - 1] === s[0]) {
-    return s.slice(1, -1);
+  if (s[0] === '"' || s[0] === "'") {
+    const end = s.indexOf(s[0], 1);
+    if (end > 0) return s.slice(1, end);
   }
-  return s;
+  return s.replace(/(^|\s)#.*$/, '').trim();
 }
 
 export function parseFrontmatter(text: string): { name?: string; version?: string } {

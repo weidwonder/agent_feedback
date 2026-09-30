@@ -30,3 +30,15 @@ test('没有 frontmatter 或未以 --- 开头返回空对象', () => {
 test('name 值为空视为缺失', () => {
   assert.deepEqual(parseFrontmatter('---\nname:\n---\n'), {});
 });
+
+test('值后的 YAML 行尾注释不算值；引号内与非空白后的 # 属于值', () => {
+  const quoted = '---\nname: a # 注释\nmetadata:\n  version: "1.2.0"   # 对应 git tag v1.2.0\n---\n';
+  assert.deepEqual(parseFrontmatter(quoted), { name: 'a', version: '1.2.0' });
+  const plain = "---\nname: a#b\nmetadata:\n  version: 1.2.0 #c\n---\n";
+  assert.deepEqual(parseFrontmatter(plain), { name: 'a#b', version: '1.2.0' });
+  const inQuotes = "---\nname: a\nmetadata:\n  version: '1.2 # x' # c\n---\n";
+  assert.deepEqual(parseFrontmatter(inQuotes), { name: 'a', version: '1.2 # x' });
+  assert.deepEqual(parseFrontmatter('---\nname: a\nmetadata:\n  version: # 未定\n---\n'), { name: 'a' });
+  assert.deepEqual(parseFrontmatter('---\nname: "a" # 注释\nmetadata:\n  version: 1.0\t# 制表符后的注释\n---\n'), { name: 'a', version: '1.0' });
+  assert.deepEqual(parseFrontmatter('---\nname: a\nmetadata:\n  version: "abc\n---\n'), { name: 'a', version: '"abc' });
+});
