@@ -18,7 +18,7 @@ flowchart LR
 
 1. 维护者在本机对 skill 的源头目录运行注入工具：目录下多出 `agent-feedback/`，`SKILL.md` 末尾多一句引导语，服务端登记该 skill。
 2. skill 照常发布。使用者的 agent 遇到 skill 本身的问题时，读 `agent-feedback/FEEDBACK.md`，在任务收尾时调用提交脚本发出反馈。
-3. 收集服务按登记名单、字段规则与限额把关后收录，保存 6 个月后自动删除。
+3. 收集服务按登记名单、字段规则与限额把关后收录，到期自动删除（保存期见 [收集服务与把关](docs/requirements/收集服务与把关.md)）。
 4. 维护者登录管理界面查看、筛选、标记与删除；维护 agent 凭查询令牌取清单与详情、标记状态。
 
 ## 仓库结构
@@ -28,22 +28,20 @@ npm workspaces 单仓，四个包，职责与边界见 [架构](docs/ARCHITECTUR
 | 包 | 是什么 |
 |---|---|
 | `packages/shared` | 提交字段、限制与校验的唯一定义，被其余三个包引用 |
-| `packages/server` | 收集服务：提交入口、登记、查询通道、管理界面、到期清理与每日备份 |
+| `packages/server` | 收集服务，也提供管理界面与查询通道 |
 | `packages/module` | 反馈模块模板：给 agent 的规则、给使用者的隐私说明、零依赖提交脚本 |
 | `packages/injector` | 注入工具命令行，在维护者本机运行 |
 
 ## 开发
 
-需要 Node 22.18 或更高版本（测试借助 Node 内置的类型剥离直接运行 TypeScript）。
+构建与测试所需的 Node 版本见 `package.json` 的 `engines`；服务端运行的版本要求与构建产物见 [部署与运维](docs/deploy.md)。
 
 ```sh
 npm install
 npm test           # 全部单元、集成与端到端测试
 npm run typecheck
-npm run build      # 产出 packages/server/dist/server.mjs、packages/module/dist/submit.mjs、packages/injector/dist/agent-feedback.mjs
+npm run build      # 各包产物在 packages/*/dist/
 ```
-
-服务端运行只需 Node 22.13 或更高版本，构建产物是零依赖单文件。
 
 ## 部署与接入
 
