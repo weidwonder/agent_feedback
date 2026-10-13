@@ -23,14 +23,15 @@ flowchart LR
 
 ## 仓库结构
 
-npm workspaces 单仓，四个包，职责与边界见 [架构](docs/ARCHITECTURE.md)：
+npm workspaces 单仓，四个包加一个维护 skill，职责与边界见 [架构](docs/ARCHITECTURE.md)：
 
-| 包 | 是什么 |
+| 目录 | 是什么 |
 |---|---|
 | `packages/shared` | 提交字段、限制与校验的唯一定义，被其余三个包引用 |
 | `packages/server` | 收集服务，也提供管理界面与查询通道 |
 | `packages/module` | 反馈模块模板：给 agent 的规则、给使用者的隐私说明、零依赖提交脚本 |
 | `packages/injector` | 注入工具命令行，在维护者本机运行 |
+| `skills/agent-feedback` | 维护 skill：给维护者的 skill 维护 agent，教它给 skill 源头注入反馈模块、在维护 skill 时先查反馈再改 |
 
 ## 开发
 
@@ -47,6 +48,7 @@ npm run build      # 各包产物在 packages/*/dist/
 
 - 部署收集服务、设置管理员、生成令牌：[部署与运维](docs/deploy.md)
 - 构建并运行注入工具、把反馈模块接入 skill：[部署与运维 › 注入工具的构建与使用](docs/deploy.md#注入工具的构建与使用)
+- 把维护 skill 装进你的 skill 仓库，让维护 agent 自动查反馈改进：[部署与运维 › 维护 skill 的获取与安装](docs/deploy.md#维护-skill-的获取与安装)
 - 让维护 agent 读取反馈：[查询通道使用说明](docs/query-api.md)
 
 ## 给 skill 使用者

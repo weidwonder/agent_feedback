@@ -19,6 +19,7 @@
 | 管理界面 | `packages/server/src/admin/routes.ts`，渲染 `views.ts`；详见 cards/agent-feedback/管理界面.md | 在 views/routes 另算北京时间偏移（改用 time.ts）；POST 路由不套 guarded |
 | 反馈模块 | `packages/module/src/submit.ts` 与 `assets/FEEDBACK.md`；详见 cards/agent-feedback/反馈模块.md | 脚本内另写校验；agent 手填自动字段 |
 | 注入 | `packages/injector/src/inject.ts#inject`；详见 cards/agent-feedback/注入.md | 对安装副本注入；令牌写入宿主目录 |
+| 维护skill | `skills/agent-feedback/SKILL.md` 与 `references/`（随仓分发的维护 agent 指引，无代码）；注入与查询行为分别复用注入工具与查询通道 | 把维护侧指引拷进分发物；查询/登记令牌写进 skill 文件 |
 
 ## 能力表（完整形态）
 
