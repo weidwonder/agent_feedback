@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-29'
+last_confirmed: '2026-10-13'
 authority_refs:
   - POST /v1/submissions 请求体与拒收码契约 v1
   - /v1/registry/check 与 POST /v1/registry 契约 v1
@@ -71,7 +71,7 @@ flowchart TD
 
 ## 1. 范围
 
-- **本仓做什么**：四个包的全部实现；服务端部署文件（systemd 单元、反向代理配置示例）；部署与运维说明 `docs/deploy.md`；上线评测场景清单模板 `docs/report/上线评测场景.md`；`CHANGELOG.md`。
+- **本仓做什么**：四个包的全部实现；服务端部署文件（systemd 单元、反向代理配置示例）；部署与运维说明 `docs/deploy.md`；上线评测场景清单模板 `docs/report/上线评测场景.md`；`CHANGELOG.md`；维护 skill `skills/agent-feedback/`（2026-10-13 新增，纯文档交付物，见 `docs/spec/2026-10-13-maintainer-skill-PRD.md`）与仓库根 `README.md`。
 - **不做什么**：PRD 非目标 1–9；通知推送；服务端内容分析；多实例同步；数据迁移工具；管理界面多账号；在维护者 VPS 上实际执行部署（需维护者凭据，交付部署文件与步骤）；外部可用性探测服务本身（只提供 `/healthz`）。
 - **上下游**：宿主 skill 源头（见 `engineering-context/dependencies/host-skills.md`）；维护者 VPS 上既有反向代理（本仓只给配置示例）。
 - **既有系统清单**：见 Overview §5.5，本 spec 不重复；卡片已补 `engineering-context/dependencies/host-skills/分发与门禁.md`。
@@ -105,7 +105,7 @@ flowchart TD
 | FR-023 | 注入工具 `node packages/injector/dist/agent-feedback.mjs inject <目录>`：按 §4.4 做前置检查、写模块与 config.json、追加引导语（幂等）、登记；登记失败回滚；写出的文件中不得含登记令牌 |
 | FR-024 | 注入成功后提示：停用状态需在界面启用；宿主仓库若有目录白名单、规范句去重、体积预算、变更记录等流程要求，由维护者按该仓库流程补充 |
 | FR-025 | 提供部署文件与说明：systemd 单元、Caddy 与 nginx 反向代理示例、环境变量说明、首次部署与恢复备份步骤 |
-| FR-026 | 提供上线评测场景清单模板：该反馈 / 不该反馈场景（各不少于 20 个）与维护 agent 读注入样本场景的记录表与判定口径；达标线引用 `docs/REQUIREMENTS.md`「服务质量要求」的上线评测准出 |
+| FR-026 | 提供上线评测场景清单模板：该反馈 / 不该反馈场景（各不少于 20 个）与维护 agent 场景（M01–M08）的记录表与判定口径；达标线引用 `docs/REQUIREMENTS.md`「服务质量要求」的上线评测准出 |
 
 ## 2. 数据模型
 
@@ -305,7 +305,7 @@ main():
   exit 0（全程 try/catch 兜底为 {ok:false, reason:"internal"}，不写 stderr）
 ```
 
-frontmatter 解析：文件以 `---\n` 开头，取到下一行 `---` 为止；顶层 `name:` 行取值；`metadata:` 块（顶层 `metadata:` 行之后、下一个顶层键之前的所有缩进行）内任意缩进层级的 `version:` 行取值（不区分层级，更深层嵌套的同样采纳；块内出现多个非空 `version:` 时以最后一个为准）；取值按 YAML 标量规则：以单/双引号开头时取到首个同种闭合引号，引号内原样保留（不支持 `''`、`\"` 转义）；否则行首或空白后的 `#` 起为注释，去掉后首尾去空白。只认这两个位置（Overview D5）。
+frontmatter 解析：文件以 `---\n` 开头，取到下一行 `---` 为止；顶层 `name:` 行取值；`metadata:` 块（顶层 `metadata:` 行之后、下一个顶层键之前的所有缩进行）内任意缩进层级的 `version:` 行取值（不区分层级，更深层嵌套的同样采纳；块内出现多个非空 `version:` 时以最后一个为准）；取值按 YAML 标量规则：以单/双引号开头时取到首个同种闭合引号，引号内原样保留（不支持 `''`、`\"` 转义），引号未闭合时按普通标量处理（含注释剥离）；否则行首或空白后的 `#` 起为注释，去掉后首尾去空白。只认这两个位置（Overview D5）。
 
 `os` 映射：`darwin`/`linux`/`win32` 原样，其余 `other`。
 

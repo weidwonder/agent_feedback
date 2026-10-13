@@ -5,6 +5,7 @@
 ### 不兼容
 
 ### 新增
+- 维护 skill（`skills/agent-feedback/`）：给维护者的 skill 维护 agent 的入口 skill，教它给 skill 源头注入反馈模块，以及在 skill 仓库里维护 skill 前先取该 skill 的反馈清单、按既有处理规则把反馈纳入改进依据；安装到 skill 仓库的仓库层，不随 skill 包分发。
 
 ### 变更
 
@@ -12,6 +13,7 @@
 
 ### 内部
 - 仓库根新增 README：项目是什么、工作方式、仓库结构、开发命令，以及部署、接入与隐私说明的入口。
+- shared：frontmatter 标量取值函数更名为 scalarValue，取值规则注释移到函数旁（评审处置，无行为变化）。
 
 ## 1.0.0 — 2026-09-29
 

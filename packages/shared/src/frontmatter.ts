@@ -1,6 +1,6 @@
 // 解析 SKILL.md 头部 frontmatter：只认顶层 name 与 metadata 下的 version（spec §4.3）。
-// 按 YAML 标量规则取值：引号内原样保留（不支持 '' 与 \" 转义）；引号外"行首或空白后的 #"起为注释。
-function unquote(v: string): string {
+/** 取 YAML 标量值：引号内原样保留（不支持 '' 与 \" 转义）；引号外"行首或空白后的 #"起为注释；引号未闭合按普通标量处理。 */
+function scalarValue(v: string): string {
   const s = v.trim();
   if (s[0] === '"' || s[0] === "'") {
     const end = s.indexOf(s[0], 1);
@@ -23,13 +23,13 @@ export function parseFrontmatter(text: string): { name?: string; version?: strin
       inMetadata = /^metadata:\s*$/.test(line);
       const m = /^name:(.*)$/.exec(line);
       if (m) {
-        const v = unquote(m[1]);
+        const v = scalarValue(m[1]);
         if (v) result.name = v;
       }
     } else if (inMetadata) {
       const m = /^\s+version:(.*)$/.exec(line);
       if (m) {
-        const v = unquote(m[1]);
+        const v = scalarValue(m[1]);
         if (v) result.version = v;
       }
     }
