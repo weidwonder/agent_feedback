@@ -136,7 +136,7 @@ ls packages/injector/dist/agent-feedback.mjs
 ls skills/agent-feedback/references/
 
 # AC-004：无真实令牌（三份文件人工核对 + 抽查）
-grep -rn "Bearer " skills/agent-feedback/   # 只应出现占位写法 <查询令牌>
+grep -rn "Bearer " skills/agent-feedback/   # 只应出现变量展开（$AGENT_FEEDBACK_QUERY_TOKEN），无字面量令牌
 
 # AC-008：既有测试不回归
 npm test
