@@ -7,6 +7,8 @@ authority_refs:
   - packages/server/deploy 下的 systemd 单元与反向代理示例
   - 数据目录布局与备份恢复步骤
   - 注入工具的构建与使用步骤
+  - 现网实例的布局与升级记录
+  - 维护 skill 的获取与安装约定
 ---
 
 # 部署与运维
@@ -53,7 +55,7 @@ authority_refs:
    ```
 6. 配反向代理与 HTTPS：示例见 `packages/server/deploy/Caddyfile.example`、`packages/server/deploy/nginx.conf.example`。代理必须把真实来源地址追加到 `X-Forwarded-For`，并让服务端 `TRUST_PROXY=1`。nginx 示例已关闭访问日志：代理日志会长期留存提交方的网络地址，而服务端对网络地址只做限额计数、有明确保留期（见 spec §4.2）；改用自己的日志配置时留意这一点。
 7. 验证：`curl -s https://<域名>/healthz` 输出 `ok`；外部可用性探测服务指向这个地址。
-8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。把查询令牌交给维护 agent 时，同时把 `docs/query-api.md` 交给它：处理规则与用法口径在该文件里。
+8. 生成令牌：浏览器打开 `https://<域名>/admin/login` 登录，在「令牌与设置」页生成登记令牌（给注入工具）和查询令牌（给维护 agent）。完整令牌只显示一次，请立即保存。把查询令牌交给维护 agent 时，同时把 `docs/query-api.md` 交给它：处理规则与用法口径在该文件里；装了维护 skill 的场合，规则与用法随 skill 到位（见[维护 skill 的获取与安装](#维护-skill-的获取与安装)），处理规则的家仍在 `docs/query-api.md`。
 
 ## 现网实例
 
@@ -109,7 +111,7 @@ Node 安装包 MUST 以 `nodejs.org/dist/<版本>/SHASUMS256.txt` 核对校验�
 
 ## 升级
 
-拉新代码、重新构建、`systemctl restart agent-feedback`。建表语句是幂等的，启动时自动执行。
+拉新代码、重新构建、`systemctl restart agent-feedback`。建表语句是幂等的，启动时自动执行。现网实例按上文「现网实例」节内嵌的升级段执行——该实例只部署构建产物、服务器上没有源码。
 
 ## 注入工具的构建与使用
 
@@ -146,6 +148,6 @@ Node 安装包 MUST 以 `nodejs.org/dist/<版本>/SHASUMS256.txt` 核对校验�
 维护 skill（`skills/agent-feedback/`）是给维护者的 skill 维护 agent 用的入口：教它给 skill 源头注入反馈模块，以及在 skill 仓库里维护任何 skill 之前先取该 skill 的反馈清单、按处理规则把反馈纳入改进依据。规则与行为口径见 [维护 skill](requirements/维护skill.md)。
 
 1. 把整个 `skills/agent-feedback/` 目录拷贝到目标 skill 仓库的仓库层技能目录（例如 `.claude/skills/agent-feedback/`，按维护 agent 所在环境支持的仓库级技能位置），或维护者自己的全局技能目录。
-2. 不要把它加进宿主仓库分发安装器的清单：它是维护侧指引，随 skill 包分发给使用者没有意义；工具与规则的使用前提（登记令牌、查询令牌）都不在使用者手里。
+2. 不要把它加进宿主仓库分发安装器的清单——它是维护侧指引，理由与边界见 [维护 skill](requirements/维护skill.md)。
 3. 本仓迭代后重新拷贝覆盖即可升级；覆盖前确认没有本地改动，有则先比对。
-4. 交给维护 agent 的两个约定：查询令牌放环境变量 `AGENT_FEEDBACK_QUERY_TOKEN` 或本机文件 `~/.config/agent-feedback/query-token`（Windows 为 `%APPDATA%\agent-feedback\query-token`，内容只有令牌一行，权限 0600），由维护者在管理界面生成后交付；本仓位置默认 `~/projects/agent_feedback`（Windows 为 `D:/projects/agent_feedback`），可用环境变量 `AGENT_FEEDBACK_REPO` 覆盖。
+4. 交给维护 agent 的位置与凭证约定（查询令牌、本仓位置、服务地址的取法与纪律）见 `skills/agent-feedback/SKILL.md` 的「开始前」表；查询令牌由维护者在管理界面生成后交付。

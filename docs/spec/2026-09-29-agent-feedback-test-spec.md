@@ -2,14 +2,14 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-29'
+last_confirmed: '2026-10-13'
 authority_refs:
   - 需求到用例追溯矩阵（§6）
 ---
 
 # agent-feedback_测试方案 — 反馈收集服务、反馈模块与注入工具
 
-> 只覆盖本仓（四个包：`packages/shared`、`server`、`module`、`injector`）。功能代码已开发完成。
+> 只覆盖本仓（四个包：`packages/shared`、`server`、`module`、`injector`；2026-10-13 新增的维护 skill `skills/agent-feedback/` 是纯文档交付物，无测试对象）。功能代码已开发完成。
 > 上游：需求真相源 `docs/REQUIREMENTS.md`；设计输入为已归并归档的 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md`、原型 `docs/spec/2026-09-29-agent-feedback-prototype.html`（界面与逐元素说明已用 `preview.mjs extract` 与 `annotations` 取回，共 9 条说明、0 条用户批注）、Overview `docs/spec/2026-09-29-agent-feedback-overview.md`、技术 Spec `docs/spec/2026-09-29-agent-feedback-eng-spec.md`（FR-001–026、AC-001–025）、Coding Plan `docs/plan/2026-09-29-agent-feedback-coding-plan.md`。
 > 覆盖度台账：`docs/report/测试场景覆盖度.md`。协作面 solo：单接口部分压缩为关键路径；长链路端到端不压缩，每环中间产物都有断言。
 > 代码事实来源（`ctx get-card agent-feedback <域>`，确认日期 2026-09-29）：`engineering-context/cards/agent-feedback/提交收录.md`、`登记.md`、`查询通道.md`、`管理界面.md`、`反馈模块.md`、`注入.md`。卡片没有覆盖的事实读源码，标在句末。

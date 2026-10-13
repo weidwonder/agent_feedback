@@ -1,7 +1,7 @@
 # 仓库地图卡 — agent-feedback
 
 ## 职责
-skill 反馈收集服务的 monorepo：服务端收录与查询、注入到宿主 skill 的提交模块、把模块写进宿主目录并登记的注入工具，以及三者共用的字段契约（packages/shared）。
+skill 反馈收集服务的 monorepo：服务端收录与查询、注入到宿主 skill 的提交模块、把模块写进宿主目录并登记的注入工具、三者共用的字段契约（packages/shared），以及随仓分发给维护 agent 的维护 skill（`skills/agent-feedback/`，纯文档交付物：教注入与按反馈改进，复用注入工具与查询通道，无代码、无独立域卡）。
 
 ## 业务域地图
 
@@ -26,14 +26,15 @@ skill 反馈收集服务的 monorepo：服务端收录与查询、注入到宿�
 | /admin/* | HTTP（会话 cookie，服务端渲染） | 管理界面 |
 | dist/submit.mjs | 宿主目录内的脚本 | 反馈模块 |
 | `node packages/injector/dist/agent-feedback.mjs config / inject` | CLI | 注入 |
+| `skills/agent-feedback/` | 维护 skill（拷贝到各 skill 仓库的仓库层，不进分发包） | 复用「注入」与「查询通道」 |
 
 ## 跨域陷阱
 - 字段契约只有 `packages/shared` 一份：服务端、提交脚本、管理界面不得各写一套校验、长度上限、枚举或中文显示名，要改先改 shared
 - 库内时间一律 UTC ISO，业务日与到期口径固定北京时间；换算与显示格式化的权威都在 `packages/server/src/time.ts`
 
 ## 上下游
-- 上游（谁调我）：宿主 skill 内的提交脚本、维护 agent、维护者浏览器、注入工具
+- 上游（谁调我）：宿主 skill 内的提交脚本、维护 agent（经维护 skill 引导）、维护者浏览器、注入工具
 - 下游（我调谁）：宿主 skill 源头文件，见 `engineering-context/dependencies/host-skills.md`
 
 ## 确认
-2026-09-29｜来源：读过 packages/shared、server、module、injector 的 src 与 module/assets
+2026-10-13｜来源：读过 packages/shared、server、module、injector 的 src 与 module/assets；2026-10-13 新增维护 skill（纯文档，登记于 capability-registry「维护skill」行）

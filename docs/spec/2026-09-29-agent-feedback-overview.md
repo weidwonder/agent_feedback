@@ -2,10 +2,11 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-29'
+last_confirmed: '2026-10-13'
 authority_refs:
   - 四个包（shared、server、module、injector）的模块边界与职责划分
   - 已定决策 D1–D14
+  - 维护 skill（skills/agent-feedback/，2026-10-13 新增）的边界一笔，详见 docs/spec/2026-10-13-maintainer-skill-PRD.md
 ---
 
 # Agent Feedback_00_Overview_顶层架构
@@ -189,7 +190,7 @@ sequenceDiagram
 
 | 子 spec | 覆盖 | 状态 |
 |---|---|---|
-| `docs/spec/2026-09-29-agent-feedback-eng-spec.md` | 四个包的数据模型、接口、核心逻辑、测试、部署；单仓，边界在同一份 spec 内分节 | 已完成 |
+| `docs/spec/2026-09-29-agent-feedback-eng-spec.md` | 四个包的数据模型、接口、核心逻辑、测试、部署；单仓，边界在同一份 spec 内分节（维护 skill 见 `2026-10-13-maintainer-skill-PRD.md`） | 已完成 |
 | `docs/plan/2026-09-29-agent-feedback-coding-plan.md` | 按垂直切片拆任务，可并行派发 | 已完成 |
 
 ## 14. 定稿核查小表
