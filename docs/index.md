@@ -23,6 +23,7 @@ authority_refs:
 - [测试场景覆盖度](report/测试场景覆盖度.md)：高风险场景的覆盖状态台账、长链路中间产物断言清单与待向维护者索要的素材。
 - [上线评测场景](report/上线评测场景.md)：上线前评测 agent 触发率、误触发率、禁写信息与维护 agent 注入抗性的场景清单与判定口径。
 - [评审报告](report/2026-09-29-agent-feedback-review-report.md)：代码评审各轮的结论、处置与"不改"说明。
+- [维护 skill 评审报告](report/2026-10-13-maintainer-skill-review-report.md)：新增维护 skill 任务（含积压结算）的评审结论与处置。
 - [TODO](TODO.md)：还没做的事的唯一出口。
 - [CHANGELOG](../CHANGELOG.md)：面向使用者与维护者的变更记录。
 - [归档索引](index-archive.md)：已归并或被取代的文档，只有历史价值。
