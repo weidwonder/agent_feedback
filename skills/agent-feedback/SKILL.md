@@ -2,7 +2,7 @@
 name: agent-feedback
 description: 维护者自建 skill 反馈通道的维护侧入口：在 skill 仓库里维护、改进或修某个 skill 的问题之前，先取该 skill 的反馈清单作为改进依据；或把反馈模块接入（注入）skill 源头目录并在服务端登记。当用户要改进 skill、修 skill 的问题、查看某个 skill 收到的反馈、给 skill 接入或注入反馈通道时使用。不负责使用 skill 时的反馈提交（那由随 skill 分发的 agent-feedback 模块负责），也不负责收集服务的部署运维与管理界面操作。
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # agent-feedback：skill 反馈通道的维护侧入口
