@@ -71,7 +71,7 @@ authority_refs:
 | agent 行为规则 `FEEDBACK.md` | `cards/agent-feedback/反馈模块.md#全文 @2026-09-29` | 第 1、4、8、10 节改写 | 已有卡片；约束列"全程静默"须刷新 |
 | 公开说明 `PRIVACY.md` | 同上 | 开头一段与"想知道发过什么"改写 | 已有卡片 |
 | 来源地址限额 | `cards/agent-feedback/提交收录.md#全文 @2026-09-29`；`packages/server/src/config.ts:42` | 默认值 | 已有卡片，补默认值一句 |
-| systemd 部署示例 | `packages/server/deploy/agent-feedback.service:21` | 显式写了 `IP_DAILY_LIMIT=5` | 无需卡片 |
+| systemd 部署示例 | `packages/server/deploy/agent-feedback.service:21` | 显式写了 `IP_DAILY_LIMIT=5` | 本次新补 `engineering-context/cards/agent-feedback/提交收录.md` 部署配置示例一行 |
 | 宿主 SKILL.md 引导语 | `packages/injector/test/inject.test.ts:165` | 不碰：引导语只说"出错时加载并按其规则执行"，与新规则不冲突 | — |
 | 上线评测场景 | `docs/report/上线评测场景.md` | "反馈"的预期、"非询问场景是否提及反馈"列、时机相关场景要重写 | — |
 | 已注入宿主里的旧版模块 | 注入工具按文件复制 | 不碰；旧副本继续按旧规则静默提交，服务端照收 | — |
