@@ -1,5 +1,3 @@
-本次对象面：P + G｜轴集合：A 规范、B 忠实、C 残留、D 文档、E agent 架构｜档位：高档（命中大架构确认门）｜各轴 P0 计数：A 0、B 0、C 0、D 0、E 0｜结算积压：无（基点 reviewed-through=a1d0488，范围内无 Review-Deferred trailer；a1d0488..main 只有 1.1.0 发版提交）
-
 ---
 lifecycle: active
 superseded_by: ''
@@ -10,6 +8,8 @@ authority_refs:
 ---
 
 # 评审报告：反馈前征得使用者同意、来源地址限额每天 50 次
+
+本次对象面：P + G｜轴集合：A 规范、B 忠实、C 残留、D 文档、E agent 架构｜档位：高档（命中大架构确认门）｜各轴 P0 计数：A 0、B 0、C 0、D 0、E 0｜结算积压：无（基点 reviewed-through=a1d0488，范围内无 Review-Deferred trailer；a1d0488..main 只有 1.1.0 发版提交）
 
 依据：[变更 spec](../spec/2026-11-16-consent-feedback-eng-spec.md)、[coding plan](../plan/2026-11-16-consent-feedback-coding-plan.md)。范围 `a1d0488...HEAD`（本次任务改动为 `main...HEAD`）。
 
