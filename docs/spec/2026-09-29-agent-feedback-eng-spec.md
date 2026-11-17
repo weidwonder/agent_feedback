@@ -21,7 +21,7 @@ authority_refs:
 # agent-feedback_技术 Spec — 反馈收集服务、反馈模块与注入工具
 
 > 本文按 RFC 2119 解释 MUST / MUST NOT / SHOULD / MAY / Implementation-defined。
-> 上文：Overview `docs/spec/2026-09-29-agent-feedback-overview.md`（已定决策 D1–D14、契约总表）；需求：`docs/REQUIREMENTS.md`（设计输入为已归并归档的 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md` 与原型 `docs/spec/2026-09-29-agent-feedback-prototype.html`）。
+> 上文：Overview `docs/spec/2026-09-29-agent-feedback-overview.md`（已定决策 D1–D14、契约总表）；需求：`docs/REQUIREMENTS.md`（设计输入为已归并归档的 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md` 与原型 `docs/spec/2026-09-29-agent-feedback-prototype.html`）。现行需求以 `docs/REQUIREMENTS.md` 与 `docs/requirements/` 为准，实现与验收依据为现行 spec；已归档 PRD 与原型仅作历史输入，不参与现行冲突裁决。
 > 单仓 npm workspaces，四个包：`packages/shared`、`packages/server`、`packages/module`、`packages/injector`。
 
 ## 0. 阅读导引
@@ -29,7 +29,7 @@ authority_refs:
 - **一句话目的**：让维护者负责的 skill 在被 agent 使用时，能在发现问题的当轮回复末尾列出问题、说明去敏并询问，使用者明确同意后立即把结构化问题送到维护者自建的收集服务并告知结果，维护者在管理界面处理、维护 agent 通过查询通道读取。
 - **端到端场景**：
   1. 维护者对 skill 源头 `~/projects/skills/zentao-skill/zentao-skill` 运行 `node packages/injector/dist/agent-feedback.mjs inject <目录>` → 目录下出现 `agent-feedback/` 与 SKILL.md 末尾引导语，服务上登记 `zentao-skill` 为启用 → 维护者按正常方式发布。
-  2. 使用者的 agent 在发现问题的当轮回复末尾，按 `agent-feedback/FEEDBACK.md` 列出 3 个问题的标题与一句话概要，说明会去掉所有敏感信息并询问 → 使用者明确同意全部或部分 → agent 在收到同意的该轮立即执行 `node agent-feedback/submit.mjs`，从标准输入传入被同意条目的 JSON → 服务校验通过落库，返回 201 → agent 一句话告知已反馈。拒绝、未回应或答非所问时，这些条目不提交，本会话不再就它们询问。
+  2. 使用者的 agent 在发现问题的当轮回复末尾，按 `agent-feedback/FEEDBACK.md` 列出 3 个问题的标题与一句话概要，说明会去掉所有敏感信息并询问 → 使用者明确同意全部或部分 → agent 在收到同意的该轮立即执行 `node agent-feedback/submit.mjs`，从标准输入传入被同意条目的 JSON → 服务校验通过落库，返回 201 → agent 一句话告知已反馈。拒绝、未回应或答非所问时，这些条目不提交，本会话不再询问任何反馈问题。
   3. 同一网络地址当天第 51 次提交（未配置来源地址限额） → 服务返回 429 `ip_limit` 并计一次"超出限额"拒收 → 提交脚本输出 `{"ok":false,...}`，退出码 0。
   4. 维护 agent 调 `GET /v1/feedback?skill=zentao-skill&type=bug&status=pending`（Bearer 查询令牌）→ 得到顶层与每条反馈都带不可信标注 `notice` 的清单 → `PATCH /v1/feedback/12 {"status":"done"}`。
 - **核心流程图**：
@@ -72,7 +72,7 @@ flowchart TD
 ## 1. 范围
 
 - **本仓做什么**：四个包的全部实现；服务端部署文件（systemd 单元、反向代理配置示例）；部署与运维说明 `docs/deploy.md`；上线评测场景清单模板 `docs/report/上线评测场景.md`；`CHANGELOG.md`；维护 skill `skills/agent-feedback/`（2026-10-13 新增，纯文档交付物，见 `docs/spec/2026-10-13-maintainer-skill-PRD.md`）与仓库根 `README.md`。
-- **不做什么**：PRD 非目标 1–9；通知推送；服务端内容分析；多实例同步；数据迁移工具；管理界面多账号；在维护者 VPS 上实际执行部署（需维护者凭据，交付部署文件与步骤）；外部可用性探测服务本身（只提供 `/healthz`）。
+- **不做什么**：`docs/REQUIREMENTS.md`「明确不做什么」；通知推送；服务端内容分析；多实例同步；数据迁移工具；管理界面多账号；在维护者 VPS 上实际执行部署（需维护者凭据，交付部署文件与步骤）；外部可用性探测服务本身（只提供 `/healthz`）。
 - **上下游**：宿主 skill 源头（见 `engineering-context/dependencies/host-skills.md`）；维护者 VPS 上既有反向代理（本仓只给配置示例）。
 - **既有系统清单**：见 Overview §5.5，本 spec 不重复；卡片已补 `engineering-context/dependencies/host-skills/分发与门禁.md`。
 
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS rejections (
 
 ### 2.4 反馈模块文件集
 
-注入后宿主目录下 `agent-feedback/`：`FEEDBACK.md`、`PRIVACY.md`、`submit.mjs`、`config.json`（`{"endpoint": "...", "moduleVersion": "1.0.0"}`）、`.gitignore`（内容 `.runtime/`）。模块版本取 `packages/module/package.json` 的 `version`。
+注入后宿主目录下 `agent-feedback/`：`FEEDBACK.md`、`PRIVACY.md`、`submit.mjs`、`config.json`（`{"endpoint": "...", "moduleVersion": "<模块包版本>"}`）、`.gitignore`（内容 `.runtime/`）。模块版本取 `packages/module/package.json` 的 `version`。
 
 ## 3. 接口契约
 
@@ -440,7 +440,7 @@ stateDiagram-v2
   done --> [*]: 删除 / 到期
 ```
 
-五种状态之间可任意互改（PRD：可改为五种状态中的任一种），以最后一次写入为准；重复写同一状态幂等。
+五种状态之间可任意互改（现行需求见 `docs/requirements/收集服务与把关.md`），以最后一次写入为准；重复写同一状态幂等。
 
 ## 11. 完成定义
 
@@ -460,7 +460,7 @@ stateDiagram-v2
 | AC-012 | `set-admin` 从标准输入设密码后可登录，旧会话失效 | FR-016 |
 | AC-013 | 同 IP 登录失败 20 次后正确密码也被拒 | FR-017 |
 | AC-014 | 提交脚本测试（起真实服务或本地假服务）：补齐字段正确（宿主名称与 metadata.version 读自 SKILL.md）；dry-run 不发请求；DISABLED 不发请求；服务不可达输出 unreachable；格式错误输出 invalid 含 field；所有情况退出码 0 且 stderr 为空 | FR-018, FR-019 |
-| AC-015 | FEEDBACK.md 与 PRIVACY.md 覆盖 FR-020 列出的每一项规则（逐条对照 PRD 核对表放进评审报告） | FR-020 |
+| AC-015 | FEEDBACK.md 与 PRIVACY.md 覆盖 FR-020 列出的每一项规则（逐条对照需求真相源 `docs/requirements/反馈模块.md` 与现行 FR-020，核对表放进评审报告） | FR-020 |
 | AC-016 | 模块 `.gitignore` 含 `.runtime/`；注入后位于宿主 `agent-feedback/.gitignore` | FR-021 |
 | AC-017 | 注入工具测试（临时目录 + 本地服务）：config 写入 0600；注入成功文件齐全且引导语只出现一次；重复注入不重复追加；无 name 拒绝；旧名拒绝；改名未同步拒绝；模块指向其他实例时新登记；登记失败回滚后宿主目录与注入前逐字节一致；写出文件不含令牌；停用 skill 注入后仍停用并提示 | FR-022, FR-023, FR-024 |
 | AC-018 | 端到端：起服务 → set-admin → 生成登记令牌与查询令牌 → config → inject 临时宿主 → 用宿主内 submit.mjs 提交 3 条 → 查询接口按 skill 取到 3 条且会话信息一致 → 管理界面列表可见 | FR-002, FR-008, FR-018, FR-023 |
