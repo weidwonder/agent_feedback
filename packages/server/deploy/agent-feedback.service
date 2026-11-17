@@ -18,7 +18,7 @@ Environment=HOST=127.0.0.1
 Environment=DATA_DIR=/var/lib/agent-feedback
 Environment=TRUST_PROXY=1
 Environment=COOKIE_SECURE=1
-Environment=IP_DAILY_LIMIT=5
+Environment=IP_DAILY_LIMIT=50
 Environment=GLOBAL_DAILY_LIMIT=500
 
 # 基本加固：只允许写数据目录

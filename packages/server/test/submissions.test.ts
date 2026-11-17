@@ -106,7 +106,29 @@ describe('POST /v1/submissions', () => {
 });
 
 describe('提交限额', () => {
-  it('同一来源第 6 次请求 429 ip_limit，计 limit 拒收；换来源不受影响', async () => {
+  it('未配置来源限额：前 50 次收录，第 51 次 429 ip_limit', async () => {
+    const s = await startTestServer({ env: { IP_DAILY_LIMIT: '' } });
+    try {
+      registerSkill(s.db, SKILL);
+      const h = { 'X-Forwarded-For': '3.3.3.50' };
+      for (let i = 1; i <= 50; i++) {
+        assert.equal((await postJson(s.baseUrl, '/v1/submissions', validBody(SKILL), h)).status, 201, `第 ${i} 次`);
+      }
+      const res = await postJson(s.baseUrl, '/v1/submissions', validBody(SKILL), h);
+      assert.equal(res.status, 429);
+      const err = ((await res.json()) as { error: { code: string; message: string } }).error;
+      assert.equal(err.code, 'ip_limit');
+      assert.match(err.message, /50/);
+      const day = beijingDay(s.ctx.now());
+      assert.equal(getCounter(s.db, day, 'ip:3.3.3.50'), 51);
+      assert.equal(getRejectionCount(s.db, day, 'limit'), 1);
+      assert.equal(count(s.db, 'submissions'), 50);
+    } finally {
+      await s.close();
+    }
+  });
+
+  it('显式配置限额 5：同一来源第 6 次请求 429 ip_limit，计 limit 拒收；换来源不受影响', async () => {
     const s = await startTestServer({ env: { IP_DAILY_LIMIT: '5' } });
     try {
       registerSkill(s.db, SKILL);

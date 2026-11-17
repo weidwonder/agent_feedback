@@ -25,7 +25,7 @@ describe('部署文件（AC-019）', () => {
     for (const m of unit.matchAll(/^Environment=([A-Z_]+)=(.*)$/gm)) env[m[1]!] = m[2]!.trim();
     assert.deepEqual(Object.keys(env).sort(), [...SPEC_ENV_NAMES].sort());
     const cfg = loadConfig(env);
-    assert.equal(cfg.ipDailyLimit, 5);
+    assert.equal(cfg.ipDailyLimit, 50);
     assert.equal(cfg.globalDailyLimit, 500);
     assert.equal(cfg.cookieSecure, true);
     assert.equal(cfg.trustProxy, true, '示例前置反向代理，须开 TRUST_PROXY');

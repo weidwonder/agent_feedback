@@ -39,7 +39,7 @@ export function loadConfig(env: Env): Config {
     dataDir,
     trustProxy: readFlag(env, 'TRUST_PROXY', false),
     cookieSecure: readFlag(env, 'COOKIE_SECURE', true),
-    ipDailyLimit: readInt(env, 'IP_DAILY_LIMIT', 5, 1, Number.MAX_SAFE_INTEGER),
+    ipDailyLimit: readInt(env, 'IP_DAILY_LIMIT', 50, 1, Number.MAX_SAFE_INTEGER),
     globalDailyLimit: readInt(env, 'GLOBAL_DAILY_LIMIT', 500, 1, Number.MAX_SAFE_INTEGER),
   };
 }
