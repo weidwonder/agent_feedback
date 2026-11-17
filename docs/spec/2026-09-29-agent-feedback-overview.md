@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-10-13'
+last_confirmed: '2026-11-17'
 authority_refs:
   - 四个包（shared、server、module、injector）的模块边界与职责划分
   - 已定决策 D1–D14
@@ -16,9 +16,9 @@ authority_refs:
 
 ## 0. 用户确认摘要（业务语言）
 
-- 业务目标：让 agent 在使用维护者负责的 skill 遇到问题时，静默把结构化反馈送到维护者的线上服务；维护者在管理界面查看处理，维护 agent 通过查询通道按 skill 取反馈。
-- 参与角色：使用者（装了宿主 skill，可全局关闭反馈）；提交方 agent（按反馈模块的规则判断、汇总、静默提交）；维护者（运行注入工具、登录管理界面）；维护 agent（凭查询令牌取清单、标状态）。
-- 主流程变化：现状无任何反馈通道 → 维护者对 skill 源头运行注入工具（同时在线上服务登记）→ 按正常方式发布 → 使用者的 agent 遇到问题在任务收尾时静默提交 → 1 分钟内可在界面与查询通道查到。
+- 业务目标：让 agent 在使用维护者负责的 skill 遇到问题时，当轮列出问题、说明去敏并征得使用者明确同意后，把结构化反馈送到维护者的线上服务并告知结果；维护者在管理界面查看处理，维护 agent 通过查询通道按 skill 取反馈。
+- 参与角色：使用者（装了宿主 skill，可同意全部或部分、拒绝反馈、全局关闭反馈）；提交方 agent（按反馈模块的规则判断、汇总、当轮询问、明确同意后立即提交与告知结果）；维护者（运行注入工具、登录管理界面）；维护 agent（凭查询令牌取清单、标状态）。
+- 主流程： 维护者对 skill 源头运行注入工具（同时在线上服务登记）→ 按正常方式发布 → 使用者的 agent 遇到问题在发现问题的当轮回复末尾询问，使用者明确同意后在该轮立即提交并告知结果 → 1 分钟内可在界面与查询通道查到。
 - 职责边界：线上服务是反馈数据与登记名单的唯一权威；反馈模块只负责"何时报、报什么、怎么发"；注入工具只负责"放模块、加引导语、登记"。宿主 skill 的原有说明与能力不变。
 - 业务影响：宿主 skill 多一个子目录和一句引导语；宿主仓库流程要求的配套改动由维护者按仓库流程处理。无历史数据，无外部协作方。
 - 主要风险与兜底：敏感信息误报 → 禁写清单 + 长度限制 + 可删除；刷量 → 网络地址 / 全站限额 + 登记名单；令牌泄露 → 令牌可撤销、令牌永不写进宿主；反馈里夹带诱导指令 → 查询结果标"不可信外部文本"。
@@ -111,7 +111,7 @@ flowchart LR
 |---|---|---|---|---|
 | shared | 字段、限制、拒收码的唯一定义 | 网络、存储 | 被其余三个包 import | 无 |
 | server | 反馈数据、登记名单与改名历史、令牌、限额计数、拒收计数、删除编号 | 宿主 skill 文件；使用者本机的任何东西 | HTTP | SQLite、备份文件、HTML、JSON |
-| module | agent 的反馈规则；运行期读取宿主名称与版本；静默提交 | 提交是否被收录的判定；任何重试 | agent 调用 `node agent-feedback/submit.mjs` | POST /v1/submissions |
+| module | agent 的反馈规则；运行期读取宿主名称与版本；征得使用者明确同意后提交 | 提交是否被收录的判定；任何重试 | agent 调用 `node agent-feedback/submit.mjs` | POST /v1/submissions |
 | injector | 维护者本机的实例配置（地址 + 登记令牌）；对宿主源头的文件改动；登记调用 | 反馈数据；查询 | 维护者命令行 | 宿主源头文件、/v1/registry/* |
 
 ## 8. 已定决策（locked-in）
@@ -151,6 +151,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
+  participant U as 使用者
   participant Ag as 提交方 agent
   participant Sb as submit.mjs
   participant Sv as 收集服务
@@ -159,12 +160,14 @@ sequenceDiagram
   In->>In: 写 agent-feedback/ + 引导语（留备份）
   In->>Sv: POST /v1/registry
   Note over In: 失败则还原宿主文件
-  Ag->>Ag: 任务收尾，汇总 ≤5 条问题
+  Ag->>U: 发现问题的当轮回复末尾列出 ≤5 条标题与概要，说明去敏并询问
+  U-->>Ag: 明确同意全部或部分条目
   Ag->>Sb: node submit.mjs（从标准输入传 JSON）
   Sb->>Sb: 读 SKILL.md name/metadata.version + config.json
   Sb->>Sv: POST /v1/submissions
   Sv-->>Sb: 201 / 4xx(拒收码+说明)
-  Sb-->>Ag: 标准输出一行 JSON 结果（agent 不转述给使用者）
+  Sb-->>Ag: 标准输出一行 JSON 结果
+  Ag->>U: 一句话告知成功或失败（不贴原因码与输出原文）
 ```
 
 ## 11. 失败 / 降级模型

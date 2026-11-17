@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-10-13'
+last_confirmed: '2026-11-17'
 authority_refs:
   - POST /v1/submissions 请求体与拒收码契约 v1
   - /v1/registry/check 与 POST /v1/registry 契约 v1
@@ -26,11 +26,11 @@ authority_refs:
 
 ## 0. 阅读导引
 
-- **一句话目的**：让维护者负责的 skill 在被 agent 使用时，能把结构化问题静默送到维护者自建的收集服务，维护者在管理界面处理、维护 agent 通过查询通道读取。
+- **一句话目的**：让维护者负责的 skill 在被 agent 使用时，能在发现问题的当轮回复末尾列出问题、说明去敏并询问，使用者明确同意后立即把结构化问题送到维护者自建的收集服务并告知结果，维护者在管理界面处理、维护 agent 通过查询通道读取。
 - **端到端场景**：
   1. 维护者对 skill 源头 `~/projects/skills/zentao-skill/zentao-skill` 运行 `node packages/injector/dist/agent-feedback.mjs inject <目录>` → 目录下出现 `agent-feedback/` 与 SKILL.md 末尾引导语，服务上登记 `zentao-skill` 为启用 → 维护者按正常方式发布。
-  2. 使用者的 agent 在任务收尾时，按 `agent-feedback/FEEDBACK.md` 规则汇总 3 个问题，执行 `node agent-feedback/submit.mjs` 并从标准输入传 JSON → 服务校验通过落库，返回 201 → agent 不向使用者提及。
-  3. 同一网络地址当天第 6 次提交 → 服务返回 429 `ip_limit` 并计一次"超出限额"拒收 → 提交脚本输出 `{"ok":false,...}`，退出码 0。
+  2. 使用者的 agent 在发现问题的当轮回复末尾，按 `agent-feedback/FEEDBACK.md` 列出 3 个问题的标题与一句话概要，说明会去掉所有敏感信息并询问 → 使用者明确同意全部或部分 → agent 在收到同意的该轮立即执行 `node agent-feedback/submit.mjs`，从标准输入传入被同意条目的 JSON → 服务校验通过落库，返回 201 → agent 一句话告知已反馈。拒绝、未回应或答非所问时，这些条目不提交，本会话不再就它们询问。
+  3. 同一网络地址当天第 51 次提交（未配置来源地址限额） → 服务返回 429 `ip_limit` 并计一次"超出限额"拒收 → 提交脚本输出 `{"ok":false,...}`，退出码 0。
   4. 维护 agent 调 `GET /v1/feedback?skill=zentao-skill&type=bug&status=pending`（Bearer 查询令牌）→ 得到顶层与每条反馈都带不可信标注 `notice` 的清单 → `PATCH /v1/feedback/12 {"status":"done"}`。
 - **核心流程图**：
 
@@ -82,7 +82,7 @@ flowchart TD
 |---|---|
 | FR-001 | 提交字段、长度与取值限制、拒收码与 skill 名校验只在 `packages/shared` 定义一次，服务端校验、提交脚本、注入工具共用 |
 | FR-002 | 收集服务公开接收提交：会话部分 + 1–5 条问题；按 §4.1 顺序把关；通过则同步落库并返回编号 |
-| FR-003 | 同一来源地址每个北京时间自然日最多 `IP_DAILY_LIMIT`（默认 5）次提交请求，所有请求（含被拒）计入 |
+| FR-003 | 同一来源地址每个北京时间自然日最多 `IP_DAILY_LIMIT`（默认 50）次提交请求，所有请求（含被拒）计入 |
 | FR-004 | 全站每个北京时间自然日最多收录 `GLOBAL_DAILY_LIMIT`（默认 500）次提交，只计收录成功的 |
 | FR-005 | 只收录已登记且启用、名称完全一致的 skill 的提交；旧名不收录 |
 | FR-006 | 拒收只按天、按原因（limit / unregistered / invalid）计数，不保存内容，全站维度 |
@@ -99,7 +99,7 @@ flowchart TD
 | FR-017 | 管理登录失败：同一来源地址当天失败 20 次后当天拒绝继续尝试（防暴力猜解；PRD 风险"令牌或密码泄露"的兜底） |
 | FR-018 | 提交脚本：从标准输入读 JSON；补齐提交时间、操作系统、宿主名称与版本（运行期读宿主 SKILL.md frontmatter `name`、`metadata.version`）、模块版本（config.json）、会话编号（缺省时生成）；10 秒超时；输出一行 JSON；任何情况退出码 0、不写标准错误 |
 | FR-019 | 提交脚本在 `AGENT_FEEDBACK_DISABLED=1` 时不发请求；支持 `--dry-run` 只输出将要发送的完整请求体（供维护者调试） |
-| FR-020 | 反馈模块的 `FEEDBACK.md` 写明 PRD 中 agent 的全部行为规则（何时反馈/不反馈、提交时机、合并与取前 5、会话 2 次上限、静默与如实回答、运行环境查找与安装、格式错误重试一次、禁写清单、字段填写说明、调用方式）；`PRIVACY.md` 公开收集范围、不收集什么、保留期、备份滞留、如何关闭 |
+| FR-020 | 反馈模块的 `FEEDBACK.md` 写明 agent 的全部行为规则（权威原文见 `packages/module/assets/FEEDBACK.md`；何时反馈/不反馈、提交时机、合并与取前 5、会话 2 次上限、当轮询问、明确同意判定、同意后同轮立即提交、提交范围与概要一致、结果一句话告知与如实回答、运行环境查找与安装、格式错误重试一次、禁写清单、字段填写说明、调用方式）；`PRIVACY.md` 公开收集范围、不收集什么、保留期、备份滞留、如何关闭 |
 | FR-021 | 反馈模块自带 `.gitignore` 忽略 `.runtime/`，装出来的运行环境不随宿主发布 |
 | FR-022 | 注入工具 `node packages/injector/dist/agent-feedback.mjs config`：设置服务地址与登记令牌（令牌从标准输入读取），写入 `~/.config/agent-feedback/config.json`，文件权限 0600 |
 | FR-023 | 注入工具 `node packages/injector/dist/agent-feedback.mjs inject <目录>`：按 §4.4 做前置检查、写模块与 config.json、追加引导语（幂等）、登记；登记失败回滚；写出的文件中不得含登记令牌 |
@@ -376,7 +376,7 @@ inject(dir):
 | `DATA_DIR` | path | 否 | `./data` |
 | `TRUST_PROXY` | 0/1 | 否 | 0 |
 | `COOKIE_SECURE` | 0/1 | 否 | 1 |
-| `IP_DAILY_LIMIT` | int ≥ 1 | 否 | 5 |
+| `IP_DAILY_LIMIT` | int ≥ 1 | 否 | 50 |
 | `GLOBAL_DAILY_LIMIT` | int ≥ 1 | 否 | 500 |
 
 ```
@@ -449,7 +449,7 @@ stateDiagram-v2
 | AC-001 | §0 阅读导引齐全 | — |
 | AC-002 | shared 校验单测：每个字段的缺失、超长、取值非法、未知字段、suggestedFix 条件必填/必空、条数 0 与 6 都返回对应 code 与 field | FR-001 |
 | AC-003 | 服务集成测试：合规提交 201 且可从查询接口读回；§0 决策表每一行提交分支有测试；拒收后 feedback 行数不变且对应拒收原因计数 +1 | FR-002, FR-005, FR-006 |
-| AC-004 | 第 6 次同 IP 请求 429；设 `GLOBAL_DAILY_LIMIT=2` 时第 3 次合规提交 429 且被拒请求不增加收录计数 | FR-003, FR-004 |
+| AC-004 | 未配置限额时前 50 次同 IP 请求正常处理、第 51 次 429 `ip_limit`；显式配置时按配置值处理；设 `GLOBAL_DAILY_LIMIT=2` 时第 3 次合规提交 429 且被拒请求不增加收录计数 | FR-003, FR-004 |
 | AC-005 | 登记接口测试：unknown→登记 created:true；重复登记 created:false 且停用状态不变；旧名 409；查询令牌调用返回 403；撤销令牌 401 | FR-007, FR-011 |
 | AC-006 | 查询接口测试：缺 skill 400；9 个筛选字段各自生效且可组合；from/to 按北京时间含两端；notice 存在；PATCH 改状态后读回一致；查询令牌不能访问登记接口 | FR-008 |
 | AC-007 | 管理界面测试（HTTP 级）：未登录 302；登录错误提示；列表默认只含 pending；详情展示会话信息；改状态；删除后查不到；登记页启停与改名（冲突拒绝、历史归新名、旧名随后提交 403）；拒收表 7 行；生成令牌只展示一次；撤销后令牌 401；改密码需当前密码；跨源 POST 403 | FR-009, FR-010, FR-011 |

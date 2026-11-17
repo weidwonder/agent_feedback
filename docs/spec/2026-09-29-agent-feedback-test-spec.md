@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-10-13'
+last_confirmed: '2026-11-17'
 authority_refs:
   - 需求到用例追溯矩阵（§6）
 ---
@@ -17,7 +17,7 @@ authority_refs:
 ## 纪律（贯穿全文）
 
 - 输入权威等级：PRD 与原型在"用户可见行为"上同级 > 技术 Spec > Coding Plan > 当前实现。冲突与未定义项一律进 §10，标"待确认"，不脑补。
-- 预期值来自 spec / PRD 的口径或手工推演的具体值（例如 6 个月零 1 天、第 6 次 429、编号 `FB-0001`），不用被测代码现场重算。
+- 预期值来自 spec / PRD 的口径或手工推演的具体值（例如 6 个月零 1 天、第 51 次 429、编号 `FB-0001`），不用被测代码现场重算。
 - 测试只挂稳定缝：HTTP 契约、命令行的标准输入输出与退出码、落库与落盘副作用、日志事件名。不断言内部调用次序。
 - 异步等待用条件轮询（服务就绪探活）或可控时钟（`mock.timers`、注入的 `now()`），不用固定 sleep。
 - 每个新增用例都做过"改坏被测代码 → 变红 → 恢复"的反向自检，结果记在 §11。
@@ -32,7 +32,7 @@ authority_refs:
   - 交付物：部署文件与配置表一致、上线评测场景清单结构。
   - 长链路：从 `config` 到删除日志重放的真实进程端到端（§8）。
 - **不覆盖**：
-  - 宿主 agent 与维护 agent 的真实会话行为（何时反馈、静默、禁写清单、会话上限、如实回答、维护 agent 抗注入）：属上线评测，见 `docs/report/上线评测场景.md`，台账登记为缺。
+  - 宿主 agent 与维护 agent 的真实会话行为（何时反馈、当轮询问与明确同意后提交及结果告知、禁写清单、会话上限、如实回答、维护 agent 抗注入）：属上线评测，见 `docs/report/上线评测场景.md`，台账登记为缺。
   - 浏览器里的交互（CSS `:target` 确认对话框的打开与取消、页面视觉）：没有浏览器自动化，靠人工点验。
   - 真实 VPS 部署、TLS、systemd 运行、反向代理转发：只测部署文件的内容一致性。
   - 网络层攻击与压测：PRD 风险表明确交给服务器厂商；单实例日收录上限 500，不做性能压测。
@@ -115,7 +115,7 @@ authority_refs:
 
 | # | 缺陷假设 | 触发条件 | 涉及接口 | 验证方式 | 风险原因 |
 |---|---|---|---|---|---|
-| 1 | 宿主头部写法一变，名称或版本就读错（顶层 version 被当版本、块描述吃掉后续行、名称含冒号被截断） | 5 份真实头部逐个作为宿主 `SKILL.md` 运行 `--dry-run` | API-SUBMIT | `body.skill` 等于手工读出的名称与版本；只有 metadata 下的 version 算版本；无 frontmatter 输出 `host_unreadable`；不发请求 | 名称错则整批被拒收且使用者无感，维护者永远收不到反馈 |
+| 1 | 宿主头部写法一变，名称或版本就读错（顶层 version 被当版本、块描述吃掉后续行、名称含冒号被截断） | 5 份真实头部逐个作为宿主 `SKILL.md` 运行 `--dry-run` | API-SUBMIT | `body.skill` 等于手工读出的名称与版本；只有 metadata 下的 version 算版本；无 frontmatter 输出 `host_unreadable`；不发请求 | 名称错则整批被拒收，使用者收到未发出的告知，维护者收不到反馈 |
 | 2 | 提交脚本补齐字段与服务端契约脱节 | 宿主内 `--dry-run`，随后真实提交 | API-SUBMIT、API-SUB | 补齐的 `skill`、`moduleVersion`、`os`、`submittedAt`、会话编号格式；落库行 `skill_version`、`module_version`、`session_id` 与之一致 | 跨包字段传递，末端碰巧正确也可能中间错位 |
 | 3 | 从删除前的备份恢复后已删反馈复现 | 删除一条 → 用删除前的快照覆盖数据库 → 重启 | API-ADM-FB、API-FGET | 启动日志 `deleted_log_applied removed=1`；查询 404；未删的两条及其状态保留 | 已删除的隐私承诺 |
 | 4 | 备份早于被删反馈的创建时，恢复后序号回退，新反馈复用已删编号并被下一次重放误删 | 备份后新建 B 并删除；恢复备份；新建 C；再重放 | 删除日志重放（服务启动与每小时维护） | C 的编号大于 B；再次重放删除 0 行且 C 仍在 | 静默丢数据，用户不会发现 |
@@ -155,7 +155,7 @@ authority_refs:
 |---|---|---|
 | FR-001 字段契约只在 shared 定义并共用 | SHV:全部（字段缺失/超长/取值/未知字段/条件必填/条数/码点）；SHN:validateSkillName 三条；SUB:非法 JSON、字段不合规、条数超限；MOD:格式错误输出 invalid；INJ:name 超长不合法 | ✅ |
 | FR-002 接收提交并按顺序把关，通过则同步落库 | SUB:合规提交返回 201；SUB:请求体超 64 KiB；SUB:skill 未登记；E2E:6 宿主内 submit.mjs 提交、6c 服务端落库 | ✅ |
-| FR-003 来源地址每日 5 次，含被拒 | SUB:同一来源第 6 次请求 429；SUB:被拒的请求同样计入；SUB:X-Forwarded-For 取最后一段；CON:同时到达的请求按顺序守恒（同一来源上限 5） | ✅ |
+| FR-003 来源地址默认每日 50 次，含被拒 | SUB:未配置来源限额：前 50 次收录，第 51 次 429 ip_limit；SUB:显式配置限额 5：同一来源第 6 次请求 429；SUB:被拒的请求同样计入；SUB:X-Forwarded-For 取最后一段；CON:同时到达的请求按顺序守恒（同一来源上限 5） | ✅ |
 | FR-004 全站每日 500 次，只计收录 | SUB:GLOBAL_DAILY_LIMIT=2；CON:同时到达的请求按顺序守恒（全站上限 3） | ✅ |
 | FR-005 只收已登记且启用、名称一致，旧名不收 | SUB:skill 未登记、已停用、是旧名（含大小写不一致）；ADM:登记页…旧名提交 403；E2E:6b | ✅ |
 | FR-006 拒收只按天按原因计数、不存内容 | SUB:三类拒收后计数 +1；SEC:拒收的提交内容不落盘；E2E:6c 落库与拒收统计 | ✅ |
@@ -172,7 +172,7 @@ authority_refs:
 | FR-017 登录失败 20 次后当天拒绝 | ADM:同 IP 登录失败 20 次后，正确密码也被拒 | ✅ |
 | FR-018 提交脚本补齐字段、10 秒超时、一行 JSON、退出码 0、无 stderr | MOD:成功提交补齐；MOD:agent 给出的 sessionId 被沿用；MOD:宿主没有 metadata.version；MOD:标准输入不是 JSON、缺 session 或 items；MOD:标准输入超过 256 KiB；MOD:config.json 缺失；MOD:宿主 SKILL.md 缺失；MOD:服务返回非 JSON 的 5xx；MOD:真实宿主头部；MOD:Node 18 环境；E2E:5b、6 | 部分：服务不可达（连接失败）有自动用例，10 秒超时分支没有自动用例（要等满 10 秒）；已手动实跑一次，见 §11 |
 | FR-019 关闭开关与 `--dry-run` | MOD:--dry-run 输出完整请求体且不发请求；MOD:AGENT_FEEDBACK_DISABLED=1 不发请求；MOD:Node 18 环境…disabled；E2E:5b | ✅ |
-| FR-020 `FEEDBACK.md` 与 `PRIVACY.md` 写明全部行为规则与收集范围 | 无自动用例；评审报告 `docs/report/2026-09-29-agent-feedback-review-report.md` 有逐条对照；语义效果靠上线评测 | 缺：文档语义无法自动断言，行为达标需上线评测（台账 ❌） |
+| FR-020 `FEEDBACK.md` 与 `PRIVACY.md` 写明全部行为规则与收集范围 | 无自动用例；现行行为原文见 `packages/module/assets/FEEDBACK.md` 与 `PRIVACY.md`；语义效果靠上线评测 | 缺：文档语义无法自动断言，行为达标需上线评测（台账 ❌） |
 | FR-021 模块自带 `.gitignore` 忽略 `.runtime/` | MOD:模块 .gitignore 资产忽略 .runtime/；INJ:成功…文件齐全；E2E:5 | ✅ |
 | FR-022 `config` 写 0600 | INJ:写入本机配置，权限 0600；INJ:已存在的宽权限配置文件会被收紧；INJ:非法地址与空令牌被拒绝；E2E:4 | ✅（Windows 上 0600 不适用，见 §10 项 8） |
 | FR-023 `inject` 前置检查、幂等、登记、回滚、不含令牌 | INJ:全部（成功、重复注入、未配置、无 name、name 超长、旧名、改名未同步、其他实例、回滚两条、检查阶段网络失败、含令牌回滚、缺模块源文件）；E2E:5 | ✅ |
@@ -182,7 +182,7 @@ authority_refs:
 | AC-001 阅读导引齐全 | 文档项，评审门核对 | 部分：无自动用例，属文档评审 |
 | AC-002 shared 校验单测 | SHV:全部；SHF；SHN；SHR | ✅ |
 | AC-003 服务集成测试 | SUB:全部决策表分支；SEC:拒收的提交内容不落盘 | ✅ |
-| AC-004 第 6 次 429；`GLOBAL_DAILY_LIMIT=2` 第 3 次 429 | SUB:同一来源第 6 次请求 429；SUB:GLOBAL_DAILY_LIMIT=2；CON:全部 | ✅ |
+| AC-004 默认限额第 51 次 429；显式配置按配置值；`GLOBAL_DAILY_LIMIT=2` 第 3 次 429 | SUB:未配置来源限额：前 50 次收录，第 51 次 429 ip_limit；SUB:显式配置限额 5：同一来源第 6 次请求 429；SUB:GLOBAL_DAILY_LIMIT=2；CON:全部 | ✅ |
 | AC-005 登记接口 | REG:全部 | ✅ |
 | AC-006 查询接口 | FAPI:全部；SEC:查询通道没有删除入口 | ✅ |
 | AC-007 管理界面（HTTP 级） | ADM:全部；ADMF；ADMD；SEC:XSS、越权、无新增入口 | 部分：确认对话框取消与视觉是浏览器端行为，未做点验 |
@@ -193,7 +193,7 @@ authority_refs:
 | AC-012 `set-admin` | SETA:从标准输入读密码；ADM:set-admin 设的密码可登录 | ✅ |
 | AC-013 登录失败 20 次 | ADM:同 IP 登录失败 20 次后 | ✅ |
 | AC-014 提交脚本 | MOD:全部；E2E:5b、6、6b | 部分：同 FR-018，10 秒超时分支手动实跑 |
-| AC-015 `FEEDBACK.md`/`PRIVACY.md` 覆盖 FR-020 | 评审报告核对表 | 缺：同 FR-020 |
+| AC-015 `FEEDBACK.md`/`PRIVACY.md` 覆盖 FR-020 | 现行规则原文与上线评测场景 | 缺：同 FR-020 |
 | AC-016 模块 `.gitignore` | MOD:模块 .gitignore 资产；E2E:5 | ✅ |
 | AC-017 注入工具测试 | INJ:全部 | ✅ |
 | AC-018 端到端 | E2E:1–12（含新增 5b、6c、9–12） | ✅ |
@@ -217,8 +217,8 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | 登记页统计与实际收录一致 | ADMD:近 7 天收录按 7 个北京自然日；ADM:登记页列表；E2E:8 | ✅ |
 | 改名确认：取消则名称不变 | 取消是浏览器端锚点，无服务端契约 | 缺（人工点验，台账 ⚠️） |
 | 场景验收：1 分钟内界面与查询通道都能查到 | E2E:7（`receivedAt` 与当前相差不到 60 秒）、E2E:8 | ✅ |
-| 会话上限、关闭开关、失败不重试、如实回答、禁写信息为 0、静默 | agent 行为，本仓无法自动断言 | 缺（上线评测，台账 ❌） |
-| 格式重试、同一任务多个问题合并与取前 5 条 | agent 行为，本仓无法自动断言；核对项见 `docs/report/上线评测场景.md` P16–P18、P20 的「预期细节」列 | 缺（上线评测，台账 ❌） |
+| 会话上限、关闭开关、失败不重试、如实回答、禁写信息为 0、当轮询问、明确同意后同轮提交、结果一句话告知 | agent 行为，本仓无法自动断言 | 缺（上线评测，台账 ❌） |
+| 格式重试、同一轮多个问题合并与取前 5 条 | agent 行为，本仓无法自动断言；核对项见 `docs/report/上线评测场景.md` P16–P18、P20 的「预期细节」列 | 缺（上线评测，台账 ❌） |
 | 使用者机器上没有提交所需的运行环境 | 脚本侧的 `node_too_old` 输出有自动用例（MOD:Node 18 环境）；agent 查找、安装与放弃的行为无法自动断言，见 `docs/report/上线评测场景.md` 的 P26、N21、N22 | 缺（上线评测，台账 ❌） |
 | 维护 agent 读到诱导文本不执行 | 服务端只保证每条反馈与顶层带不可信标注：FAPI:缺 skill 400…带不可信标注、PATCH 用例；agent 是否照做靠上线评测 | 部分 |
 
@@ -232,7 +232,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | U2 | 请求体 64 KiB 边界之上 | BV | API-SUB | FX-BODY | 加 70000 字符字段 | 413 `payload_too_large`；来源与 invalid 计数 +1；不落库 | 集成 | SUB:请求体超 64 KiB |
 | U3 | 非法 JSON、字段为空、未知字段、条数 0 与 6 | BV、ADV | API-SUB | FX-BODY | 各一项 | 400 对应码与 `field`；不落库；invalid +1 | 集成 | SUB:非法 JSON…；SHV |
 | U4 | 未登记、停用、旧名、大小写不一致 | DT | API-SUB | FX-SKILL | `skill.name` | 403 `skill_not_registered`；unregistered +1 | 集成 | SUB:skill 未登记… |
-| U5 | 来源地址第 5 次与第 6 次；换来源；被拒也计数 | BV、ST | API-SUB | FX-SERVER | `X-Forwarded-For` | 第 6 次 429 `ip_limit`；换来源不受影响 | 集成 | SUB:同一来源第 6 次…；SUB:被拒的请求 |
+| U5 | 来源地址默认第 50 次与第 51 次；显式限额 5 时第 5 次与第 6 次；换来源；被拒也计数 | BV、ST | API-SUB | FX-SERVER（缺省与显式配置） | `X-Forwarded-For` | 缺省第 51 次 429 `ip_limit`，显式配置限额 5 时第 6 次 429；换来源不受影响 | 集成 | SUB:未配置来源限额…；SUB:显式配置限额 5…；SUB:被拒的请求 |
 | U6 | 全站上限第 3 次 | BV | API-SUB | FX-SERVER（`GLOBAL_DAILY_LIMIT=2`） | — | 429 `global_limit`；被拒不增加收录计数 | 集成 | SUB:GLOBAL_DAILY_LIMIT=2 |
 | U7 | unknown→登记→重复登记；停用不变；旧名 409 | ST | API-CHK、API-REG | FX-TOKEN | — | `created:true` 再 `false`；旧名 409 | 集成 | REG:unknown 后登记…；REG:旧名 |
 | U8 | 令牌缺失、无效、已撤销、类型不符 | DT | API-CHK、API-FLIST | FX-TOKEN | Authorization | 401 / 401 / 401 / 403 | 集成 | REG:查询令牌调用登记接口 403…；FAPI:鉴权 |
@@ -317,7 +317,7 @@ PRD 验收项里没有对应 FR/AC 编号的，按功能落点补对照：
 | 6. `metadata` 下更深层嵌套的 `version` | 提交脚本 | FX-REALHEAD | SHR | 已澄清，见 spec §4.3；依据 `packages/shared/src/frontmatter.ts#parseFrontmatter`。真实样本里没有更深层嵌套写法，未增专门用例 | 契约疑问 |
 | 7. 提交脚本的兜底 `internal` | API-SUBMIT | — | 无 | 待确认：spec §4.3 要求全程 try/catch 兜底为 `{ok:false,reason:"internal"}`，没有可触发的稳定入口（不构造被测代码内部异常），未测 | 实现风险 |
 | 8. Windows 平台 | API-CLI-INJ、API-SUBMIT | — | 全套 `npm test` 在 Windows 主机实跑；INJ:本机配置默认路径（win32 用例） | 已实跑通过，见 §11 | 集成疑问 |
-| 9. 宿主 agent 行为规则 | — | — | 无 | 待确认：PRD 的静默、禁写、会话上限、格式重试、如实回答等只能靠真实会话评测验证；`docs/report/上线评测场景.md` 已备场景，尚未执行 | 实现风险 |
+| 9. 宿主 agent 行为规则 | — | — | 无 | 待上线评测：当轮询问、全部或部分同意后提交、拒绝或未回应不提交且不再询问、别再问、结果告知、禁写、会话上限、格式重试、如实回答等只能靠真实会话评测验证；`docs/report/上线评测场景.md` 已备场景，尚未执行 | 实现风险 |
 | 10. `deploy.md` 与配置表 | DEL | — | DEL:部署文件 | `docs/deploy.md` 明确不复述变量表（以 spec §6 为唯一出处），AC-019 的"一致"由 systemd 单元与配置表比对承担；`deploy.md` 本身未逐项比对 | 契约疑问 |
 
 ## 11. 准出标准
