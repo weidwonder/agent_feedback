@@ -51,8 +51,10 @@ authority_refs:
 
 满足：FR-014｜验收：AC-010
 
-`## 未发布` 的 `### 不兼容` 下按对外接口列出以下条目，旧行为、新行为与迁移步骤均须齐全：
+核验 [CHANGELOG 的「未发布」](../../CHANGELOG.md#未发布) 下的「不兼容」条目，涉及三个对外接口：
 
-- `packages/module/assets/FEEDBACK.md`：全程静默提交、不向使用者提及、任务收尾时一次性提交 → 当轮回复末尾询问，明确同意后同轮提交并一句话告知结果；一次拒绝、未回应或答非所问后本会话不再询问，部分同意只提交获同意的条目且本会话不再询问。迁移：维护者用模块 1.1.0 对已接入的宿主 skill 重新注入并发布宿主 skill。
-- `packages/module/assets/PRIVACY.md`：自动发送、不另行征求确认 → AI 助手被要求先列出问题并征得同意再发送。迁移：维护者用模块 1.1.0 对已接入的宿主 skill 重新注入并发布宿主 skill。
-- `IP_DAILY_LIMIT`、`packages/server/deploy/agent-feedback.service`：未设置时默认 5、示例显式写 5 → 默认 50、示例写 50。迁移：照示例部署的实例手动改配置并重启；想保留 5 的实例显式设 `IP_DAILY_LIMIT=5`。全站默认上限保持 500。
+- `packages/module/assets/FEEDBACK.md`
+- `packages/module/assets/PRIVACY.md`
+- `IP_DAILY_LIMIT` 与 `packages/server/deploy/agent-feedback.service`
+
+每条旧行为、新行为、迁移三项齐全。

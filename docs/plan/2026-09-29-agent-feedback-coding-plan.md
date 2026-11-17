@@ -111,7 +111,7 @@ authority_refs:
 - Create: `packages/module/assets/FEEDBACK.md`、`packages/module/assets/PRIVACY.md`、`packages/module/assets/gitignore`（内容 `.runtime/`）
 - Test: `packages/module/test/submit.test.ts`（先 `npm run build -w @agent-feedback/module`，再在临时目录布置 `SKILL.md` + `agent-feedback/{submit.mjs,config.json}`，用 `child_process.spawnSync` 喂 stdin 执行；用 `http.createServer` 起本地假服务收请求）
 
-**规则核验要求:** 文件落点为 `packages/module/assets/FEEDBACK.md` 与 `PRIVACY.md`；行为与公开说明分别按 [反馈模块需求](../requirements/反馈模块.md) 和 [agent 规则原文](../../packages/module/assets/FEEDBACK.md) 核验。动手前 MUST 加载 `skill-principle`；MUST 核对 spec FR-020、§2.1 字段填写说明、完整调用示例及结果处理和运行环境章节，文本 SHOULD ≤ 250 行。验证命令与测试要求见下文。
+**规则核验要求:** 文件落点为 `packages/module/assets/FEEDBACK.md` 与 `PRIVACY.md`；agent 行为规则按 [agent 规则原文](../../packages/module/assets/FEEDBACK.md) 及 [反馈模块需求](../requirements/反馈模块.md) 核验，公开说明按 [PRIVACY.md](../../packages/module/assets/PRIVACY.md) 核验。动手前 MUST 加载 `skill-principle`；MUST 核对 spec FR-020、§2.1 字段填写说明、完整调用示例及结果处理和运行环境章节，文本 SHOULD ≤ 250 行。验证命令与测试要求见下文。
 
 **测试要求:** AC-014、AC-016（`.gitignore` 资产内容）。
 **验证:** `npm run typecheck && npm test && npm run build -w @agent-feedback/module` → 通过，生成 `packages/module/dist/submit.mjs`，`head -c 200` 确认无 `import` 第三方包。
