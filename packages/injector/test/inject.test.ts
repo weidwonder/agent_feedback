@@ -148,6 +148,18 @@ describe('config', () => {
 });
 
 describe('inject', () => {
+  it('注入的 moduleVersion 等于模块包版本 1.1.0', async () => {
+    const manifest = readFileSync(new URL('../../module/package.json', import.meta.url), 'utf8');
+    const modulePackage = JSON.parse(manifest) as { version: string };
+    assert.equal(modulePackage.version, '1.1.0');
+    writeFileSync(join(moduleDir, 'package.json'), manifest);
+    await configure();
+    const r = await run(injectArgs());
+    assert.equal(r.code, 0, r.stderr);
+    const config = JSON.parse(readFileSync(join(host, 'agent-feedback', 'config.json'), 'utf8')) as { moduleVersion: string };
+    assert.equal(config.moduleVersion, modulePackage.version);
+  });
+
   it('成功：文件齐全、引导语一次、config.json 不含令牌、带 Bearer 登记令牌', async () => {
     await configure();
     const r = await run(injectArgs());

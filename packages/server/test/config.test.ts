@@ -12,7 +12,7 @@ describe('服务端配置', () => {
       dataDir: resolve('./data'),
       trustProxy: false,
       cookieSecure: true,
-      ipDailyLimit: 5,
+      ipDailyLimit: 50,
       globalDailyLimit: 500,
     });
   });

@@ -2,10 +2,11 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-29'
+last_confirmed: '2026-11-17'
 authority_refs:
   - packages/shared 导出面（validateSubmission、常量、拒收码、中文显示名）
   - packages/server 内部模块接口（openDb、createApp、runMaintenance、startJobs）
+  - Task 3 反馈模块交付物与规则核验约束（packages/module/assets/FEEDBACK.md、PRIVACY.md）
 ---
 
 # Agent Feedback Coding Plan
@@ -110,8 +111,7 @@ authority_refs:
 - Create: `packages/module/assets/FEEDBACK.md`、`packages/module/assets/PRIVACY.md`、`packages/module/assets/gitignore`（内容 `.runtime/`）
 - Test: `packages/module/test/submit.test.ts`（先 `npm run build -w @agent-feedback/module`，再在临时目录布置 `SKILL.md` + `agent-feedback/{submit.mjs,config.json}`，用 `child_process.spawnSync` 喂 stdin 执行；用 `http.createServer` 起本地假服务收请求）
 
-**FEEDBACK.md 编写要求:** 动手前 MUST 加载 `skill-principle` skill（找不到时读 `~/.claude/skills/skill-principle/SKILL.md`）按其对指令文本的要求写；MUST 覆盖 PRD `docs/spec/2026-09-29-agent-feedback-PRD.md` §反馈模块：agent 的行为规则 的全部条目与 §提交的信息 两张表的填写说明，以及 spec FR-020 列表；给出完整调用示例（heredoc 传 JSON，含全部字段）、结果处理（ok:false 各 reason 的动作：invalid 修正后最多重试一次；其余放弃且本会话不再提交；unreachable 不计入 2 次）、运行环境查找与安装步骤（先 `node --version`（≥20 可用）→ 再找 `agent-feedback/.runtime/node*/bin/node`（Windows 为 `.runtime\node*\node.exe`）→ 都没有时尝试一次把官方 Node 发行包下载解压到 `agent-feedback/.runtime/`，国内网络优先 `https://npmmirror.com/mirrors/node/`，失败或被拒就放弃且本会话不再尝试；当时口径为此，现行见 `packages/module/assets/FEEDBACK.md` 第 9 节）；禁写清单；"使用者直接问起时如实说明"；"不向使用者提及反馈"。文本 SHOULD ≤ 250 行。
-**PRIVACY.md 编写要求:** 面向使用者，业务语言；列收集字段、不收集的内容、保留 6 个月及删除后备份最多滞留 7 天、用途（只供 skill 维护者改进 skill，不用于训练）、关闭方法 `AGENT_FEEDBACK_DISABLED=1`。
+**规则核验要求:** 文件落点为 `packages/module/assets/FEEDBACK.md` 与 `PRIVACY.md`；agent 行为规则按 [agent 规则原文](../../packages/module/assets/FEEDBACK.md) 及 [反馈模块需求](../requirements/反馈模块.md) 核验，公开说明按 [PRIVACY.md](../../packages/module/assets/PRIVACY.md) 核验。动手前 MUST 加载 `skill-principle`；MUST 核对 spec FR-020、§2.1 字段填写说明、完整调用示例及结果处理和运行环境章节，文本 SHOULD ≤ 250 行。验证命令与测试要求见下文。
 
 **测试要求:** AC-014、AC-016（`.gitignore` 资产内容）。
 **验证:** `npm run typecheck && npm test && npm run build -w @agent-feedback/module` → 通过，生成 `packages/module/dist/submit.mjs`，`head -c 200` 确认无 `import` 第三方包。
