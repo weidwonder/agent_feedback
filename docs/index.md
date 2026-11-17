@@ -26,6 +26,7 @@ authority_refs:
 - [上线评测场景](report/上线评测场景.md)：上线前评测 agent 触发率、误触发率、禁写信息与维护 agent 注入抗性的场景清单与判定口径。
 - [评审报告](report/2026-09-29-agent-feedback-review-report.md)：代码评审各轮的结论、处置与"不改"说明。
 - [维护 skill 评审报告](report/2026-10-13-maintainer-skill-review-report.md)：新增维护 skill 任务（含积压结算）的评审结论与处置。
+- [反馈征得同意评审报告](report/2026-11-17-consent-feedback-review-report.md)：反馈前征得使用者同意、来源地址限额 50 次这次变更的评审结论与处置。
 - [TODO](TODO.md)：还没做的事的唯一出口。
 - [CHANGELOG](../CHANGELOG.md)：面向使用者与维护者的变更记录。
 - [归档索引](index-archive.md)：已归并或被取代的文档，只有历史价值。
